@@ -143,7 +143,7 @@ export async function approveUser(_: unknown, fd: FormData): Promise<{ error?: s
   if (!p) return { error: "Usuario no encontrado" };
   const role = roles.includes(chosen) ? chosen : roles.includes(p.requested_role) ? p.requested_role : p.role;
   const { data: bw } = await supabase
-    .from("bandwidth_profiles").select("name").eq("tenant_id", me.tenant_id).eq("role", role).single();
+    .from("bandwidth_profiles").select("name, download_kbps, upload_kbps").eq("tenant_id", me.tenant_id).eq("role", role).single();
 
   const admin = createAdminClient();
   const { data: u } = await admin.auth.admin.getUserById(id);
@@ -153,6 +153,8 @@ export async function approveUser(_: unknown, fd: FormData): Promise<{ error?: s
   const password = typed || crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 
   try {
+    // El perfil de velocidad debe existir en el router antes de crear el usuario
+    if (bw) await syncBandwidthProfile(tenant, bw.name, bw.download_kbps, bw.upload_kbps);
     await createHotspotUser(tenant, username, password, bw?.name ?? role);
   } catch (e) {
     console.error("Hotspot:", e instanceof Error ? e.message : "error");
