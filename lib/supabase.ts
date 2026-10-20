@@ -34,12 +34,13 @@ export function createAdminClient() {
 export async function getRouterConfig(tenantId: string) {
   const { data } = await createAdminClient()
     .from("tenant_router_credentials")
-    .select("router_url, router_user, router_password_enc")
+    .select("router_url, router_user, router_password_enc, router_cert_fingerprint")
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return {
     router_url: data?.router_url ?? null,
     router_user: data?.router_user ?? null,
     router_password: data?.router_password_enc ? decryptSecret(data.router_password_enc) : null,
+    router_cert_fingerprint: data?.router_cert_fingerprint ?? null,
   };
 }

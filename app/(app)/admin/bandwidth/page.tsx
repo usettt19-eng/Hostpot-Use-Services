@@ -48,6 +48,8 @@ export default async function BandwidthPage() {
           <input name="router_url" defaultValue={tenant.router_url ?? ""} />
           <label>Usuario</label>
           <input name="router_user" defaultValue={tenant.router_user ?? ""} />
+          <label>Huella SHA-256 del certificado (opcional; necesaria si es autofirmado)</label>
+          <input name="router_cert_fingerprint" defaultValue={tenant.router_cert_fingerprint ?? ""} placeholder="AA:BB:CC:…" />
           <label>Contraseña (déjala vacía para no cambiarla)</label>
           <input name="router_password" type="password" autoComplete="new-password" />
           <p><button>Guardar conexión</button></p>

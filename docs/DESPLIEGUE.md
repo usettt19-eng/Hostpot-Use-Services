@@ -36,6 +36,22 @@ El registro DNS (A) del subdominio debe apuntar a la IP del servidor antes de co
 cd /opt/hotspot-portal && git pull && docker compose up -d --build
 ```
 
-## 5. MikroTik
-Pendiente de definir cómo llega el servidor al router (WireGuard, IP pública restringida o misma red). Prueba desde el servidor:
-`curl -sSk -m 5 -o /dev/null -w "%{http_code}\n" https://IP-ROUTER/rest/system/identity` (un `401` es buena señal). Luego configura la conexión en **Ancho de banda → Conexión al MikroTik**.
+## 5. MikroTik (túnel WireGuard + REST)
+Ejecuta también `supabase/migrations/0005_router_cert_pin.sql` (columna para la huella del certificado).
+
+**Servidor** (`/etc/wireguard/wg-portal.conf`, interfaz `wg-portal`, IP `10.99.0.1/24`, UDP 51820) y **router** (interfaz `wg-portal`, IP `10.99.0.2/24`, el router inicia la conexión con `persistent-keepalive=25s`). Ver la guía de comandos en el historial del proyecto o repítelos con tus claves.
+
+En el router: usuario `portal` (grupo `portal`: `read,write,api,rest-api,test`) restringido a `address=10.99.0.1/32`, `www-ssl` activo con certificado propio (`portal`, firmado por `portal-ca`, `subject-alt-name=IP:10.99.0.2`) y `address=10.99.0.1/32`.
+
+Prueba desde el servidor:
+```bash
+curl -sSk -m 8 -u 'portal:CLAVE' https://10.99.0.2/rest/system/identity
+```
+
+**Huella del certificado** (se pega en el portal porque es autofirmado):
+```bash
+openssl s_client -connect 10.99.0.2:443 </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256
+```
+
+**En el portal** → Ancho de banda → Conexión al MikroTik: URL `https://10.99.0.2`, usuario `portal`, la huella SHA-256 y la contraseña.
+Si cambias o renuevas el certificado del router, actualiza la huella.

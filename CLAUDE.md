@@ -53,7 +53,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 /user group add name=portal policy=read,write,api,rest-api,test
 /user add name=portal group=portal password=CAMBIAR
 ```
-El router debe ser alcanzable desde el servidor del portal (VPN o IP pública restringida).
+El router debe ser alcanzable desde el servidor del portal (VPN o IP pública restringida). Si usa certificado autofirmado, se fija su huella SHA-256 (`router_cert_fingerprint`); sin huella se valida la cadena normal. Ver `docs/DESPLIEGUE.md`.
 
 ## Reglas para el código
 - Todo acceso a datos del tenant va con el cliente Supabase del usuario (RLS activo). El **service role** solo en server-side (route handlers / server actions) para: registro público, aprobación, escritura de `usage_stats`, lectura de credenciales del router. Nunca exponerlo al cliente.
@@ -77,7 +77,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql` y `0004_establishment_types.sql` (cada uno por separado, en orden).
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql` y `0005_router_cert_pin.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Abrir `/register-school` para crear el establecimiento y su administrador.

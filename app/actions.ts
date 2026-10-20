@@ -9,6 +9,7 @@ import {
   deleteHotspotUser,
   setHotspotUserDisabled,
   syncBandwidthProfile,
+  normalizeFingerprint,
 } from "@/lib/mikrotik";
 import { isAdminRole, isEstablishmentType, rolesFor, DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 
@@ -205,6 +206,7 @@ export async function saveRouter(fd: FormData) {
     tenant_id: me.tenant_id,
     router_url: String(fd.get("router_url") || "") || null,
     router_user: String(fd.get("router_user") || "") || null,
+    router_cert_fingerprint: normalizeFingerprint(String(fd.get("router_cert_fingerprint") ?? "")) || null,
     updated_at: new Date().toISOString(),
   };
   if (pass) patch.router_password_enc = encryptSecret(pass);
