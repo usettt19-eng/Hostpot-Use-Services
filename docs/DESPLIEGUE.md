@@ -25,10 +25,9 @@ El puerto queda solo en `127.0.0.1:8120`.
 ## 3. nginx + HTTPS
 ```bash
 sudo cp deploy/nginx-hotspot-portal.conf /etc/nginx/sites-available/hotspot-portal
-sudo sed -i 's/wifi.TUDOMINIO.com/TU.SUBDOMINIO.com/' /etc/nginx/sites-available/hotspot-portal
 sudo ln -s /etc/nginx/sites-available/hotspot-portal /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d TU.SUBDOMINIO.com    # instala certbot si falta: sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d connect.TUDOMINIO.com    # instala certbot si falta: sudo apt install certbot python3-certbot-nginx
 ```
 El registro DNS (A) del subdominio debe apuntar a la IP del servidor antes de correr certbot.
 
