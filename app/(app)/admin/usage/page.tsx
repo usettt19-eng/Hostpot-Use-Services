@@ -21,6 +21,7 @@ export default async function UsagePage() {
     usage = await fetchUsage(tenant, (users ?? []).map((u) => u.username));
   } catch (e) {
     error = e instanceof Error ? e.message : "No se pudo consultar el router";
+    usage = { simulated: false, rows: [] };
   }
 
   const info = new Map(
