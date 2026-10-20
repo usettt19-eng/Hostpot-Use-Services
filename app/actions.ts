@@ -10,7 +10,7 @@ import {
   setHotspotUserDisabled,
   syncBandwidthProfile,
 } from "@/lib/mikrotik";
-import { ROLES } from "@/lib/roles";
+import { isAdminRole, isEstablishmentType, rolesFor, DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -33,15 +33,22 @@ export async function logout() {
   redirect("/login");
 }
 
-/** Registro de usuario en una escuela existente. Queda 'pending' hasta que un admin lo apruebe. */
+/** Datos públicos mínimos de un establecimiento por su código (para adaptar el formulario de registro). */
+export async function lookupEstablishment(code: string) {
+  const { data } = await createAdminClient()
+    .from("tenants").select("name, type").eq("slug", slugify(code)).maybeSingle();
+  return data ? { name: data.name as string, type: data.type as EstablishmentType, roles: [...rolesFor(data.type)] } : null;
+}
+
+/** Registro de usuario en un establecimiento existente. Queda 'pending' hasta que un admin lo apruebe. */
 export async function register(_: unknown, fd: FormData) {
   const slug = slugify(String(fd.get("school")));
   const role = String(fd.get("role"));
-  if (!ROLES.includes(role as (typeof ROLES)[number])) return { error: "Rol inválido" };
 
   const admin = createAdminClient();
-  const { data: tenant } = await admin.from("tenants").select("id").eq("slug", slug).maybeSingle();
-  if (!tenant) return { error: "No existe una escuela con ese código" };
+  const { data: tenant } = await admin.from("tenants").select("id, type").eq("slug", slug).maybeSingle();
+  if (!tenant) return { error: "No existe un establecimiento con ese código" };
+  if (!rolesFor(tenant.type).includes(role)) return { error: "Rol inválido para este tipo de establecimiento" };
 
   const { data, error } = await admin.auth.admin.createUser({
     email: String(fd.get("email")),
@@ -55,7 +62,7 @@ export async function register(_: unknown, fd: FormData) {
     tenant_id: tenant.id,
     full_name: String(fd.get("full_name")),
     requested_role: role,
-    role: "student", // el rol efectivo lo fija el admin al aprobar
+    role: DEFAULT_ROLE[tenant.type as EstablishmentType], // el rol efectivo lo fija el admin al aprobar
     status: "pending",
   });
   if (pErr) {
@@ -65,15 +72,17 @@ export async function register(_: unknown, fd: FormData) {
   return { ok: "Cuenta creada. Un administrador debe aprobarla antes de que puedas usar la red." };
 }
 
-/** Crea una escuela nueva (tenant) y su primer administrador activo. */
+/** Crea un establecimiento nuevo (tenant) y su primer administrador activo. */
 export async function registerSchool(_: unknown, fd: FormData) {
   const name = String(fd.get("school_name")).trim();
   const slug = slugify(name);
-  if (!slug) return { error: "Nombre de escuela inválido" };
+  const type = String(fd.get("type"));
+  if (!slug) return { error: "Nombre de establecimiento inválido" };
+  if (!isEstablishmentType(type)) return { error: "Tipo de establecimiento inválido" };
 
   const admin = createAdminClient();
-  const { data: tenant, error: tErr } = await admin.from("tenants").insert({ name, slug }).select("id").single();
-  if (tErr) return { error: tErr.code === "23505" ? "Ya existe una escuela con ese nombre" : tErr.message };
+  const { data: tenant, error: tErr } = await admin.from("tenants").insert({ name, slug, type }).select("id").single();
+  if (tErr) return { error: tErr.code === "23505" ? "Ya existe un establecimiento con ese nombre" : tErr.message };
 
   const { data, error } = await admin.auth.admin.createUser({
     email: String(fd.get("email")),
@@ -92,7 +101,7 @@ export async function registerSchool(_: unknown, fd: FormData) {
     role: "superadmin",
     status: "active",
   });
-  return { ok: `Escuela creada. Código para registrar usuarios: ${slug}` };
+  return { ok: `Establecimiento creado. Código para registrar usuarios: ${slug}` };
 }
 
 /* ---------- Administración ---------- */
@@ -103,18 +112,19 @@ async function requireAdmin() {
   if (!auth.user) redirect("/login");
   const { data: me } = await supabase
     .from("profiles").select("id, tenant_id, role, status").eq("id", auth.user.id).single();
-  if (!me || me.status !== "active" || !["superadmin", "director"].includes(me.role)) redirect("/dashboard");
+  if (!me || me.status !== "active" || !isAdminRole(me.role)) redirect("/dashboard");
   const tenant = await getRouterConfig(me.tenant_id);
-  return { supabase, me, tenant };
+  const { data: est } = await supabase.from("tenants").select("type").eq("id", me.tenant_id).single();
+  return { supabase, me, tenant, roles: rolesFor(est?.type ?? "school") };
 }
 
 export async function setUserStatus(fd: FormData) {
-  const { supabase, me } = await requireAdmin();
+  const { supabase, me, roles } = await requireAdmin();
   const id = String(fd.get("id"));
   const status = String(fd.get("status"));
   const role = String(fd.get("role") ?? "");
   const patch: Record<string, string> = { status };
-  if (role && ROLES.includes(role as (typeof ROLES)[number])) patch.role = role;
+  if (role && roles.includes(role)) patch.role = role;
   await supabase.from("profiles").update(patch).eq("id", id).eq("tenant_id", me.tenant_id);
   revalidatePath("/admin/users");
 }
@@ -124,13 +134,13 @@ export async function setUserStatus(fd: FormData) {
  * La contraseña del Hotspot se devuelve una sola vez (no se almacena).
  */
 export async function approveUser(_: unknown, fd: FormData): Promise<{ error?: string; username?: string; password?: string }> {
-  const { supabase, me, tenant } = await requireAdmin();
+  const { supabase, me, tenant, roles } = await requireAdmin();
   const id = String(fd.get("id"));
   const chosen = String(fd.get("role") ?? "");
   const { data: p } = await supabase
     .from("profiles").select("id, role, requested_role").eq("id", id).eq("tenant_id", me.tenant_id).single();
   if (!p) return { error: "Usuario no encontrado" };
-  const role = ROLES.includes(chosen as (typeof ROLES)[number]) ? chosen : p.role;
+  const role = roles.includes(chosen) ? chosen : roles.includes(p.requested_role) ? p.requested_role : p.role;
   const { data: bw } = await supabase
     .from("bandwidth_profiles").select("name").eq("tenant_id", me.tenant_id).eq("role", role).single();
 

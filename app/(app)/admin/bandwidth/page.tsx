@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient, getRouterConfig } from "@/lib/supabase";
 import { saveBandwidth, saveRouter } from "@/app/actions";
-import { ROLE_LABEL } from "@/lib/roles";
+import { ROLE_LABEL, isAdminRole } from "@/lib/roles";
 
 export default async function BandwidthPage() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   const { data: me } = await supabase.from("profiles").select("role, status, tenant_id").eq("id", auth.user!.id).single();
-  if (!me || me.status !== "active" || !["superadmin", "director"].includes(me.role)) redirect("/dashboard");
+  if (!me || me.status !== "active" || !isAdminRole(me.role)) redirect("/dashboard");
 
   const { data: profiles } = await supabase
     .from("bandwidth_profiles").select("id, role, name, download_kbps, upload_kbps").order("download_kbps", { ascending: false });

@@ -19,7 +19,7 @@ export default function LoginPage() {
           <p><button disabled={pending}>{pending ? "Entrando…" : "Entrar"}</button></p>
         </form>
         <p className="muted">
-          <Link href="/register">Registrarme en mi escuela</Link> · <Link href="/register-school">Crear una escuela</Link>
+          <Link href="/register">Registrarme en mi establecimiento</Link> · <Link href="/register-school">Crear un establecimiento</Link>
         </p>
       </div>
     </div>

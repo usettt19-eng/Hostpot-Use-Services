@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, getRouterConfig } from "@/lib/supabase";
 import { fetchUsage, formatBytes } from "@/lib/mikrotik";
-import { ROLE_LABEL } from "@/lib/roles";
+import { ROLE_LABEL, isAdminRole } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export default async function UsagePage() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   const { data: me } = await supabase.from("profiles").select("role, status, tenant_id").eq("id", auth.user!.id).single();
-  if (!me || me.status !== "active" || !["superadmin", "director"].includes(me.role)) redirect("/dashboard");
+  if (!me || me.status !== "active" || !isAdminRole(me.role)) redirect("/dashboard");
 
   const tenant = await getRouterConfig(me.tenant_id);
   const { data: users } = await supabase

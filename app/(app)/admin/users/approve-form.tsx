@@ -2,9 +2,9 @@
 
 import { useActionState } from "react";
 import { approveUser } from "@/app/actions";
-import { ROLES, ROLE_LABEL } from "@/lib/roles";
+import { ROLE_LABEL } from "@/lib/roles";
 
-export function ApproveForm({ id, requestedRole }: { id: string; requestedRole: string }) {
+export function ApproveForm({ id, requestedRole, roles }: { id: string; requestedRole: string; roles: readonly string[] }) {
   const [state, action, pending] = useActionState(approveUser, null);
   if (state?.password) {
     return (
@@ -18,7 +18,7 @@ export function ApproveForm({ id, requestedRole }: { id: string; requestedRole: 
     <form action={action} className="inline">
       <input type="hidden" name="id" value={id} />
       <select name="role" defaultValue={requestedRole} style={{ width: "auto" }}>
-        {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+        {roles.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
       </select>
       <input name="hotspot_password" placeholder="Contraseña WiFi (opcional)" autoComplete="off" style={{ width: "auto" }} />
       <button disabled={pending}>{pending ? "Aprobando…" : "Aprobar"}</button>

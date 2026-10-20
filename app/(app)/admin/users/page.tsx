@@ -2,15 +2,18 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { setUserStatus, toggleHotspot, removeHotspot } from "@/app/actions";
 import { ApproveForm } from "./approve-form";
-import { ROLES, ROLE_LABEL } from "@/lib/roles";
+import { rolesFor, ROLE_LABEL, isAdminRole } from "@/lib/roles";
 
 const STATUS_LABEL: Record<string, string> = { pending: "Pendiente", active: "Activo", suspended: "Suspendido" };
 
 export default async function UsersPage() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
-  const { data: me } = await supabase.from("profiles").select("role, status").eq("id", auth.user!.id).single();
-  if (!me || me.status !== "active" || !["superadmin", "director"].includes(me.role)) redirect("/dashboard");
+  const { data: me } = await supabase.from("profiles").select("role, status, tenant_id").eq("id", auth.user!.id).single();
+  if (!me || me.status !== "active" || !isAdminRole(me.role)) redirect("/dashboard");
+
+  const { data: est } = await supabase.from("tenants").select("type").eq("id", me.tenant_id).single();
+  const roles = rolesFor(est?.type ?? "school");
 
   const { data: people } = await supabase
     .from("profiles").select("id, full_name, role, requested_role, status, created_at").order("created_at", { ascending: false });
@@ -35,7 +38,7 @@ export default async function UsersPage() {
                       <input type="hidden" name="status" value={p.status} />
                       <select name="role" defaultValue={p.role} disabled={p.role === "superadmin"} style={{ width: "auto" }}>
                         {p.role === "superadmin" && <option value="superadmin">{ROLE_LABEL.superadmin}</option>}
-                        {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                        {roles.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                       </select>
                       {p.role !== "superadmin" && <button className="ghost">Guardar</button>}
                     </form>
@@ -45,7 +48,7 @@ export default async function UsersPage() {
                   <td>
                     <div className="row">
                       {p.status === "pending" && (
-                        <ApproveForm id={p.id} requestedRole={p.requested_role} />
+                        <ApproveForm id={p.id} requestedRole={p.requested_role} roles={roles} />
                       )}
                       {p.status === "active" && p.role !== "superadmin" && (
                         <form action={setUserStatus}>

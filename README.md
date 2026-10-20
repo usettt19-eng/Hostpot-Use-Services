@@ -3,7 +3,7 @@
 Next.js 15 + Supabase + MikroTik RouterOS v7 (REST).
 
 ## Qué hace
-- **Multitenant**: cada escuela es un tenant aislado con RLS en Postgres.
+- **Multitenant**: cada establecimiento (escuela, restaurante, pub u hotel) es un tenant aislado con RLS en Postgres.
 - **Registro y roles**: directivo, staff, docente, estudiante. Las cuentas nuevas quedan *pendientes* hasta que un administrador las aprueba.
 - **Perfiles de ancho de banda por rol**: se sincronizan al `user profile` del Hotspot (`rate-limit`).
 - **Usuarios del Hotspot**: al aprobar se crea el usuario en el router; se puede deshabilitar o quitar.
@@ -14,7 +14,7 @@ Next.js 15 + Supabase + MikroTik RouterOS v7 (REST).
 1. Crea un proyecto en Supabase y ejecuta `supabase/migrations/0001_init.sql` en el SQL editor.
 2. Copia `.env.example` a `.env.local` y completa las claves.
 3. `npm install && npm run dev`
-4. Abre `/register-school` para crear tu escuela y su administrador. El código de escuela que se muestra sirve para que los demás se registren en `/register`.
+4. Abre `/register-school` para crear tu establecimiento y su administrador. El código del establecimiento que se muestra sirve para que los demás se registren en `/register`.
 5. En **Ancho de banda → Conexión al MikroTik** ingresa URL, usuario y contraseña.
 
 ## MikroTik

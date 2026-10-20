@@ -7,14 +7,14 @@ export default async function Dashboard() {
   const { data: me } = await supabase
     .from("profiles").select("full_name, role, status").eq("id", auth.user!.id).single();
   const { data: bw } = await supabase
-    .from("bandwidth_profiles").select("name, download_kbps, upload_kbps").eq("role", me?.role ?? "student").maybeSingle();
+    .from("bandwidth_profiles").select("name, download_kbps, upload_kbps").eq("role", me?.role ?? "").maybeSingle();
   const { data: hu } = await supabase.from("hotspot_users").select("username, disabled").maybeSingle();
 
   if (me?.status === "pending") {
     return (
       <div className="card">
         <h1>Cuenta pendiente de aprobación</h1>
-        <p className="muted">Un administrador de tu escuela debe aprobarla para activar tu acceso a la red.</p>
+        <p className="muted">Un administrador de tu establecimiento debe aprobarla para activar tu acceso a la red.</p>
       </div>
     );
   }

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase";
 import { logout } from "@/app/actions";
-import { ROLE_LABEL } from "@/lib/roles";
+import { ROLE_LABEL, isAdminRole } from "@/lib/roles";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!auth.user) redirect("/login");
   const { data: me } = await supabase
     .from("profiles").select("full_name, role, status, tenants(name)").eq("id", auth.user.id).single();
-  const isAdmin = me && me.status === "active" && ["superadmin", "director"].includes(me.role);
+  const isAdmin = me && me.status === "active" && isAdminRole(me.role);
   const tenant = me?.tenants as unknown as { name: string } | null;
 
   return (

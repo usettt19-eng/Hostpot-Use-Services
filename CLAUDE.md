@@ -1,4 +1,4 @@
-# Portal de Red Escolar (multitenant)
+# Portal de Red WiFi multitenant (escuelas, restaurantes, pubs, hoteles)
 
 Contexto del proyecto para Claude Code. Léelo completo antes de tocar código.
 
@@ -11,10 +11,19 @@ Portal web multitenant para escuelas. Cada escuela es un **tenant** aislado con 
 - MikroTik RouterOS v7 vía **REST API** (`/rest/...`, HTTPS, basic auth)
 - Sin router configurado, la app funciona en **modo simulado** (mantener este comportamiento)
 
+## Tipos de establecimiento y roles
+`tenants.type` (`establishment_type`): `school`, `restaurant`, `pub`, `hotel`. Se elige en `/register-school`. Los roles disponibles dependen del tipo (`lib/roles.ts`, `ROLES_BY_TYPE`; validado en server actions):
+| Tipo | Roles (además de `superadmin` fundador) |
+|---|---|
+| school | director, staff, teacher, student |
+| restaurant / pub | manager, employee, customer |
+| hotel | manager, employee, guest |
+Administradores: `superadmin`, `director`, `manager` (`ADMIN_ROLES` / `is_admin()`). El trigger siembra anchos de banda según el tipo. Migraciones `0003` (valores de enum) y `0004` (tipo + trigger) deben ir por separado y en orden.
+
 ## Roles y estados
-- `user_role`: `superadmin`, `director`, `staff`, `teacher`, `student`
+- `user_role`: `superadmin`, `director`, `staff`, `teacher`, `student`, `manager`, `employee`, `customer`, `guest`
 - `account_status`: `pending` → `active` | `suspended`
-- Admin = `superadmin` o `director` con `status = 'active'` (función SQL `is_admin()`)
+- Admin = `superadmin`, `director` o `manager` con `status = 'active'` (función SQL `is_admin()`)
 - El usuario pide un rol (`requested_role`); el rol efectivo (`role`) lo fija el admin al aprobar.
 
 ## Esquema (supabase/migrations/0001_init.sql)
@@ -68,7 +77,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`.
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql` y `0004_establishment_types.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Abrir `/register-school` para crear la escuela y su administrador.
