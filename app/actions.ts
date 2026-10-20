@@ -210,6 +210,11 @@ export async function saveRouter(fd: FormData) {
     updated_at: new Date().toISOString(),
   };
   if (pass) patch.router_password_enc = encryptSecret(pass);
-  await createAdminClient().from("tenant_router_credentials").upsert(patch, { onConflict: "tenant_id" });
+  const { error } = await createAdminClient()
+    .from("tenant_router_credentials").upsert(patch, { onConflict: "tenant_id" });
+  if (error) {
+    console.error("saveRouter:", error.message);
+    throw new Error("No se pudo guardar la conexión del router");
+  }
   revalidatePath("/admin/bandwidth");
 }
