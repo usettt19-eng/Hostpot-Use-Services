@@ -3,7 +3,7 @@
 Contexto del proyecto para Claude Code. Léelo completo antes de tocar código.
 
 ## Resumen
-Portal web multitenant para escuelas. Cada escuela es un **tenant** aislado con RLS en Postgres. Los usuarios se registran, un administrador (directivo) los aprueba, y al aprobarlos se crea su usuario en el **Hotspot de un MikroTik** con un límite de ancho de banda según su rol. Incluye un panel de consumo.
+Portal web multitenant para establecimientos (escuelas, restaurantes, pubs, hoteles). Cada establecimiento es un **tenant** aislado con RLS en Postgres. Los usuarios se registran, un administrador (directivo) los aprueba, y al aprobarlos se crea su usuario en el **Hotspot de un MikroTik** con un límite de ancho de banda según su rol. Incluye un panel de consumo.
 
 ## Stack
 - Next.js 15 (App Router) + TypeScript
@@ -29,7 +29,7 @@ Administradores: `superadmin`, `director`, `manager` (`ADMIN_ROLES` / `is_admin(
 ## Esquema (supabase/migrations/0001_init.sql)
 | Tabla | Propósito |
 |---|---|
-| `tenants` | Escuela. Incluye `slug` único y credenciales del router (`router_url`, `router_user`, `router_password`) |
+| `tenants` | Establecimiento: `name`, `slug` único, `type`. Las credenciales del router viven en `tenant_router_credentials` (solo service role) |
 | `profiles` | 1:1 con `auth.users`. `tenant_id`, `full_name`, `requested_role`, `role`, `status` |
 | `bandwidth_profiles` | Un perfil por (tenant, rol): `download_kbps`, `upload_kbps`. Se siembra con un trigger al crear el tenant |
 | `hotspot_users` | Usuario Hotspot ligado a un `profile`. `unique(tenant_id, username)`, `disabled` |
@@ -37,10 +37,10 @@ Administradores: `superadmin`, `director`, `manager` (`ADMIN_ROLES` / `is_admin(
 
 Helpers RLS: `current_tenant()` y `is_admin()` (ambas `security definer`).
 
-Valores por defecto sembrados (kbps down/up): director 20480/10240, staff 10240/5120, teacher 10240/5120, student 2048/1024, superadmin 20480/10240.
+Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`): director 20480/10240, staff 10240/5120, teacher 10240/5120, student 2048/1024, superadmin 20480/10240.
 
 ## Flujos
-1. **/register-school**: crea tenant + admin (director activo). Muestra el código/slug de la escuela.
+1. **/register-school**: crea tenant (con su tipo) + admin (superadmin activo). Muestra el código/slug de la escuela.
 2. **/register**: el usuario ingresa el slug, se crea `profiles` con `status = 'pending'`.
 3. **Aprobación (admin)**: pasa a `active`, asigna `role`, crea el usuario en el router y la fila en `hotspot_users`.
 4. **Ancho de banda**: al guardar un `bandwidth_profile`, sincronizar al `/ip/hotspot/user/profile` del router con `rate-limit` = `"{upload}k/{download}k"` (en RouterOS el formato es **rx/tx desde la perspectiva del router**, es decir upload/download del cliente; verificar contra el router real).
@@ -64,7 +64,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 ## Seguridad (corregido en `0002_security.sql`)
 1. Credenciales del router en `tenant_router_credentials` (RLS sin políticas, solo service role); la contraseña se cifra con AES-256-GCM (`lib/crypto.ts`, env `ROUTER_CRED_KEY`). Contraseñas previas en claro se descartan: re-ingresar.
 2. `current_tenant()` exige `status = 'active'`; `tenant_select` deja a pendientes ver solo su propia escuela (ya sin datos sensibles).
-3. La contraseña del Hotspot se muestra una sola vez al aprobar (o la define el admin); no se almacena. El rol efectivo ya no se autoasigna al registrarse: nace `student` y el admin lo fija al aprobar.
+3. La contraseña del Hotspot se muestra una sola vez al aprobar (o la define el admin); no se almacena. El rol efectivo ya no se autoasigna al registrarse: nace con el rol de menor privilegio del tipo (student/customer/guest) y el admin lo fija al aprobar.
 4. Sin políticas de insert en `profiles`/`tenants`/`usage_stats`, y `revoke insert, delete` para `anon`/`authenticated`.
 
 ## Pendiente antes de producción
@@ -80,5 +80,5 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql` y `0004_establishment_types.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
-4. Abrir `/register-school` para crear la escuela y su administrador.
+4. Abrir `/register-school` para crear el establecimiento y su administrador.
 5. En **Ancho de banda → Conexión al MikroTik** ingresar URL, usuario y contraseña.
