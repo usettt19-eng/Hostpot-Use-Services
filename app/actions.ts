@@ -202,11 +202,15 @@ export async function saveBandwidth(fd: FormData) {
 export async function saveRouter(fd: FormData) {
   const { me } = await requireAdmin();
   const pass = String(fd.get("router_password") ?? "");
+  const fingerprint = normalizeFingerprint(String(fd.get("router_cert_fingerprint") ?? ""));
+  if (fingerprint && fingerprint.length !== 64) {
+    throw new Error("La huella SHA-256 debe tener 64 caracteres hexadecimales (32 pares)");
+  }
   const patch: Record<string, string | null> = {
     tenant_id: me.tenant_id,
     router_url: String(fd.get("router_url") || "") || null,
     router_user: String(fd.get("router_user") || "") || null,
-    router_cert_fingerprint: normalizeFingerprint(String(fd.get("router_cert_fingerprint") ?? "")) || null,
+    router_cert_fingerprint: fingerprint || null,
     updated_at: new Date().toISOString(),
   };
   if (pass) patch.router_password_enc = encryptSecret(pass);

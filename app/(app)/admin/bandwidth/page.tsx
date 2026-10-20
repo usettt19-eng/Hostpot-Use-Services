@@ -45,11 +45,11 @@ export default async function BandwidthPage() {
         <p className="muted">Sin datos de conexión el portal funciona en modo simulado. Habilita el servicio <code>www-ssl</code> en el router y crea un usuario de API con permisos limitados.</p>
         <form action={saveRouter}>
           <label>URL del router (ej. https://192.168.88.1)</label>
-          <input name="router_url" defaultValue={tenant.router_url ?? ""} />
+          <input name="router_url" autoComplete="off" defaultValue={tenant.router_url ?? ""} />
           <label>Usuario</label>
-          <input name="router_user" defaultValue={tenant.router_user ?? ""} />
+          <input name="router_user" autoComplete="off" defaultValue={tenant.router_user ?? ""} />
           <label>Huella SHA-256 del certificado (opcional; necesaria si es autofirmado)</label>
-          <input name="router_cert_fingerprint" defaultValue={tenant.router_cert_fingerprint ?? ""} placeholder="AA:BB:CC:…" />
+          <input name="router_cert_fingerprint" defaultValue={tenant.router_cert_fingerprint ?? ""} placeholder="AA:BB:CC:…" autoComplete="off" />
           <label>Contraseña (déjala vacía para no cambiarla)</label>
           <input name="router_password" type="password" autoComplete="new-password" />
           <p><button>Guardar conexión</button></p>
