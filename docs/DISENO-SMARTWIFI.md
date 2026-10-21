@@ -159,3 +159,38 @@ Antes de fijar precios: consultar las tarifas actuales de los proveedores de men
 3. **Dónde corre el worker.** En el mismo VPS, otro contenedor. Alternativa: servidor aparte si el VPS compartido se queda corto.
 4. **Locales existentes.** Convertir cada tenant actual en un tenant con una sede, sin pérdida de datos.
 5. **Hardware de prueba siguiente.** Sugiero un equipo con más memoria que el hEX lite para medir carga real en la Fase 0.
+
+## G. Comparativa con Datawifi (según el texto de su página principal)
+Base: texto copiado de `datawifi.co` por el usuario. Es lo que la empresa dice de sí misma; las cifras no están verificadas y la página no explica cómo funciona por dentro (integración con equipos, almacenamiento, retención). Las propuestas de abajo son nuestras.
+
+| Elemento observado | Estado en este diseño | Propuesta |
+|---|---|---|
+| Portal con marca y experiencia personalizada | Cubierto (módulo 1) | Fase 1 |
+| Registro y segmentación de usuarios | Cubierto (módulos 2 y 3) | Fase 1 y 2 |
+| Datos "seguros, visuales e integrables" | Cubierto en parte: paneles, exportación y cifrado | API y webhooks en Fase 3 |
+| **IA que convierte conexiones en insights (DSM)** | No cubierto | Fase 3, ver G.1 |
+| Compatibilidad con muchos fabricantes (más de 40 homologaciones) | Solo MikroTik en las Fases 0 a 2 | Fase 3: UniFi, Omada y RADIUS; priorizar por los equipos que ya usen los clientes |
+| Integraciones con redes sociales, CRM y pagos | Parcial: CRM por webhooks. Sin pagos ni login social | Decidir en G.2 |
+| Programa de partners (BPS) | Cubierto como revendedor | Fase 3 |
+| FlowMetrics (analítica de localización, a juzgar por el nombre) | Presencia por sondeo, diferida | Solo con base legal y consentimiento; después de la Fase 3 |
+| SmartFilter (filtrado, a juzgar por el nombre) | Filtrado DNS, diferido | Fase 3, opcional |
+| Sectores: banca, comercial, educación, gobierno, hotelería, venue, retail, estadio, corporativo, transporte | Cuatro tipos de establecimiento | Ampliar `establishment_type` según el primer cliente real de cada sector |
+| Venta con demo y expertos regionales | No aplica al producto | Preparar un entorno demo con datos simulados |
+| Páginas legales completas | Parcial | Aviso de privacidad, términos y cookies por local, con el abogado |
+| Compra de portal "básico" vs "inteligente" | No aplica | Usar la distinción en los planes (Básico / Pro) |
+
+### G.1 Motor de insights (equivalente a DSM)
+Su descripción es "datos de calidad + reglas de negocio + IA". Propuesta alineada con nuestra privacidad:
+1. **Datos de calidad:** los agregados diarios (`venue_daily_stats`), ya depurados (sesiones cerradas, duplicados, MAC repetida).
+2. **Reglas de negocio deterministas:** un motor de reglas calcula hallazgos medibles y reproducibles. Ejemplos: "los martes por la noche caen las visitas un 30 % frente a la media", "el 40 % de los nuevos no vuelve en 30 días", "campaña X con canje inferior al umbral".
+3. **IA solo para redactar y recomendar:** el modelo recibe los hallazgos agregados y devuelve un resumen y acciones sugeridas en lenguaje claro. **No recibe datos personales** (ni teléfonos, correos ni MAC), solo cifras agregadas.
+4. **Salida:** resumen semanal por local en el panel y por correo, con enlace a los gráficos que respaldan cada afirmación.
+5. **Control:** cada recomendación muestra la regla y los datos que la originaron, y se puede marcar como útil o descartada.
+
+Criterio de aceptación: en un local con datos simulados, el resumen cita cifras que coinciden con el panel, y no incluye ningún dato personal.
+
+### G.2 Decisiones pendientes
+1. **Pagos.** ¿Hay WiFi de pago o por planes en los primeros clientes? Si sí, se añade una pasarela (Fase 2) y un tipo de plan con precio; si no, se deja fuera.
+2. **Login social.** Las plataformas cambian sus APIs de WiFi con frecuencia; recomiendo no depender de ello al inicio y ofrecer correo y teléfono.
+3. **Más sectores.** Qué tipos de establecimiento añadir además de los cuatro actuales.
+4. **IA.** Qué proveedor de modelos se usa para los resúmenes y dónde corre, con la regla de no enviar datos personales.
