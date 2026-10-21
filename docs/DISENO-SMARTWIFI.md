@@ -237,3 +237,51 @@ Su página lo describe como gestión del acceso a internet por **zonas, horarios
 **Fases:**
 - **Fase 2:** horarios por rol y por plan, que ya tienen valor en escuelas, hoteles y oficinas y no requieren filtrado.
 - **Fase 3:** zonas y bloqueo por categoría o dominio, con el panel de uso agregado.
+
+## H. Personalización del portal por establecimiento (requisito)
+Cada establecimiento (y, si hace falta, cada local) controla cómo se ve y qué dice su portal. Esto sustituye la lista corta de `venue_portal_settings` del apartado B.
+
+### H.1 Qué se puede personalizar
+| Área | Opciones | Límites |
+|---|---|---|
+| Identidad | Nombre visible, logo, imagen o color de fondo, color principal y de acento, color de texto, radio de los botones, tipografía | Tipografías de una lista cerrada, alojadas en nuestro dominio. Logo PNG, WebP o SVG de hasta 512 KB |
+| Plantilla | 3 diseños predefinidos: tarjeta centrada, imagen dividida, fondo completo | Sin HTML ni CSS libre |
+| Textos | Título, subtítulo, etiquetas de botones, mensaje de bienvenida, pie, enlace a la política de privacidad | Español e inglés; se elige por el idioma del navegador, con uno por defecto |
+| Términos y condiciones | Texto propio con **versiones** | Cambiar el texto crea una versión nueva y exige un nuevo consentimiento |
+| Acceso | Métodos activos y su orden, y qué datos se piden (nombre, correo, teléfono, campos opcionales) | Mínimos por defecto; cada campo extra se marca obligatorio u opcional y avisa que debe justificarse legalmente |
+| Después de conectar | URL de destino, banner, cupón o encuesta (Fase 2) | Solo `https://`, con lista de dominios permitidos |
+| Planes de red | Velocidad y duración por método | Se configura en `venue_guest_plans` |
+
+### H.2 Cómo funciona
+- **Borrador y publicación:** los cambios se editan como borrador y se publican con un clic. Se guarda el historial y se puede volver a una versión anterior.
+- **Vista previa:** en escritorio y móvil, en modo simulado (sin router), antes de publicar.
+- **Contraste:** la edición avisa o impide combinaciones de color por debajo de AA (legibilidad).
+- **Quién edita:** `superadmin`, `director` y `manager` editan todo; `venue_manager` solo sus locales; `marketing` edita textos y diseño, pero **no** los términos legales.
+- **El router no se toca:** el `login.html` del Hotspot es el mismo para todos y solo redirige al portal. Cambiar el diseño no requiere acceder al router.
+
+### H.3 Seguridad (un portal cautivo pide datos personales, así que es objetivo de suplantación)
+1. **Sin HTML, CSS ni JavaScript libres** de los clientes: solo campos estructurados y plantillas nuestras. Evita XSS y portales falsos con nuestro dominio.
+2. **Imágenes:** validar el tipo real del archivo, tamaño y dimensiones, quitar metadatos y sanear los SVG (o convertirlos a PNG).
+3. **Alojamiento de recursos en el dominio del portal.** Las imágenes se sirven con una ruta del portal (`/w/{local}/assets/...`) aunque estén en Supabase Storage, sin CDN ni fuentes de terceros. Así el walled garden del router solo necesita permitir el dominio y la IP del portal.
+4. **Cabeceras:** CSP estricta en `/w/*`, sin scripts de terceros y sin cookies de seguimiento.
+5. **URLs:** solo `https://`, nunca `javascript:` ni `data:`, y con lista de dominios permitidos por local.
+6. **Rendimiento:** página renderizada en el servidor, con JavaScript mínimo y menos de unos 150 KB, porque los mini-navegadores de portal cautivo de iOS y Android son limitados ⚠️.
+
+### H.4 Modelo de datos
+- `venue_portal_versions`: `venue_id`, `version`, `status` (`draft` o `published`), `settings` (jsonb validado en el servidor con un esquema), `created_by`, `created_at`, `published_at`.
+- Una sola versión publicada por local, y una restricción única que lo garantiza.
+- Los términos viven en `venue_terms` (`venue_id`, `version`, `locale`, `text`, `text_hash`) y los consentimientos apuntan a esa versión.
+- Los archivos (logo, fondo) en un bucket privado de Supabase Storage, con una tabla `venue_assets` que guarda dueño, tipo, tamaño y hash.
+- RLS por `tenant_id`; la lectura pública del portal pasa por el servidor, sin política abierta.
+
+### H.5 Dominios propios (white-label, Fase 3)
+`{local}.connect.useservices.company` con certificado comodín (requiere validación DNS) y dominios propios del cliente (`wifi.cliente.com`) con su certificado. Cada dominio nuevo debe poder alcanzarse desde el walled garden, y como todos resuelven a la misma IP del VPS basta con permitir esa IP.
+
+### H.6 Criterios de aceptación (Fase 1)
+- Un administrador cambia logo, colores, textos e idioma, y publica en menos de 5 minutos, sin tocar el router.
+- Dos establecimientos distintos muestran portales distintos en el mismo servidor.
+- Una combinación de colores ilegible se detecta antes de publicar.
+- Un archivo que no es una imagen válida o un SVG con scripts se rechaza.
+- Cambiar los términos fuerza un nuevo consentimiento en la siguiente visita.
+- Un usuario de un establecimiento no puede ver ni editar el portal de otro (prueba de RLS).
+- La página pública pesa menos del límite y funciona sin JavaScript de terceros.
