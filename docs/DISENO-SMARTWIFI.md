@@ -172,7 +172,7 @@ Base: texto copiado de `datawifi.co` por el usuario. Es lo que la empresa dice d
 | Compatibilidad con muchos fabricantes (más de 40 homologaciones) | Solo MikroTik en las Fases 0 a 2 | Fase 3: UniFi, Omada y RADIUS; priorizar por los equipos que ya usen los clientes |
 | Integraciones con redes sociales, CRM y pagos | Parcial: CRM por webhooks. Sin pagos ni login social | Decidir en G.2 |
 | Programa de partners (BPS) | Cubierto como revendedor | Fase 3 |
-| FlowMetrics (analítica de localización, a juzgar por el nombre) | Presencia por sondeo, diferida | Solo con base legal y consentimiento; después de la Fase 3 |
+| FlowMetrics: presencia y permanencia, clasificación del público en tiempo real, mapas de calor y flujos | Presencia por sondeo, diferida | Fase 4, ver G.3 |
 | SmartFilter (filtrado, a juzgar por el nombre) | Filtrado DNS, diferido | Fase 3, opcional |
 | Sectores: banca, comercial, educación, gobierno, hotelería, venue, retail, estadio, corporativo, transporte | Cuatro tipos de establecimiento | Ampliar `establishment_type` según el primer cliente real de cada sector |
 | Venta con demo y expertos regionales | No aplica al producto | Preparar un entorno demo con datos simulados |
@@ -194,3 +194,22 @@ Criterio de aceptación: en un local con datos simulados, el resumen cita cifras
 2. **Login social.** Las plataformas cambian sus APIs de WiFi con frecuencia; recomiendo no depender de ello al inicio y ofrecer correo y teléfono.
 3. **Más sectores.** Qué tipos de establecimiento añadir además de los cuatro actuales.
 4. **IA.** Qué proveedor de modelos se usa para los resúmenes y dónde corre, con la regla de no enviar datos personales.
+
+### G.3 Presencia y movilidad (equivalente a FlowMetrics)
+Su página lo describe como análisis de presencia y permanencia, clasificación del público en tiempo real, mapas de calor y flujos. No dice cómo lo logra; lo siguiente es nuestra evaluación técnica.
+
+**Lo que se puede hacer según el equipo disponible**
+| Capacidad | Qué necesita | Con el hardware actual |
+|---|---|---|
+| Visitas y permanencia de quienes **se conectan** | El Hotspot y las sesiones de la Fase 1 | Sí, ya está en el diseño |
+| Presencia de dispositivos **sin conectar** (sondeo) | Que los puntos de acceso reporten las señales de dispositivos cercanos | No: MikroTik con Hotspot no lo entrega de forma útil |
+| Mapas de calor y flujos entre zonas | Varios puntos de acceso con intensidad de señal y un plano del local, o un controlador que estime posiciones | No; requiere controladores como UniFi u Omada |
+| Clasificación del público (nuevo/recurrente, personal/visitante) | Permanencia y frecuencia por dispositivo o por persona | Parcial; el personal se separa porque ya tiene cuenta en el portal |
+
+**Condiciones para hacerlo**
+1. **Base legal.** Medir a personas que no se han conectado ni aceptado nada es la parte más sensible. Solo con asesoría legal, aviso visible en el local y datos anonimizados al origen (sin guardar MAC ni identificadores en claro).
+2. **Precisión limitada.** La MAC aleatoria de los móviles modernos hace que un mismo dispositivo aparezca como varios y deprime el conteo de recurrentes. Las cifras deben presentarse como estimaciones.
+3. **Hardware.** Las zonas y los mapas de calor exigen más de un punto de acceso por área y un controlador compatible. Se vincula con la Fase 3 (UniFi, Omada, RADIUS).
+4. **Privacidad en el diseño.** Agregar por zona y franja horaria en el equipo o en el worker, y almacenar solo conteos, nunca trazas individuales.
+
+**Propuesta:** Fase 4, después de tener el piloto en producción y un controlador compatible instalado en un cliente real. Primero se entrega permanencia y visitas de quienes se conectan (ya incluido), que da gran parte del valor sin el riesgo legal.
