@@ -2,6 +2,8 @@
 
 Contexto del proyecto para Claude Code. Léelo completo antes de tocar código.
 
+> **Regla de trabajo.** Al empezar cualquier sesión, lee también `docs/AVANCES.md`: es la bitácora con el estado real (qué está desplegado, qué migraciones están aplicadas, pendientes y decisiones). Al terminar **cada** cambio, actualízala (estado, pendientes y la tabla de registro) en el mismo commit. Si lo que ves en el repo contradice la bitácora, corrígela. Nunca escribas claves ni contraseñas en ella.
+
 ## Resumen
 Portal web multitenant para establecimientos (escuelas, restaurantes, pubs, hoteles). Cada establecimiento es un **tenant** aislado con RLS en Postgres. Los usuarios se registran, un administrador (directivo) los aprueba, y al aprobarlos se crea su usuario en el **Hotspot de un MikroTik** con un límite de ancho de banda según su rol. Incluye un panel de consumo.
 
