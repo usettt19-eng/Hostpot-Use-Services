@@ -2,6 +2,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC = ["/login", "/register", "/register-school"];
+// Portal del invitado: accesible con o sin sesión (no redirige a quien ya inició sesión)
+const OPEN = ["/w/"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -24,6 +26,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  if (OPEN.some((p) => path.startsWith(p))) return response;
   const isPublic = PUBLIC.some((p) => path.startsWith(p));
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));

@@ -34,6 +34,7 @@ Administradores: `superadmin`, `director`, `manager` (`ADMIN_ROLES` / `is_admin(
 | `bandwidth_profiles` | Un perfil por (tenant, rol): `download_kbps`, `upload_kbps`. Se siembra con un trigger al crear el tenant |
 | `hotspot_users` | Usuario Hotspot ligado a un `profile`. `unique(tenant_id, username)`, `disabled` |
 | `usage_stats` | Historial de bytes in/out por usuario (`recorded_at`) |
+| `portal_versions` | Personalización del portal del invitado por establecimiento: `settings` (jsonb validado con zod), `status` (draft/published/archived), `terms_version`. Solo escribe el servidor; los admins leen por RLS |
 
 Helpers RLS: `current_tenant()` y `is_admin()` (ambas `security definer`).
 
@@ -46,6 +47,17 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 4. **Ancho de banda**: al guardar un `bandwidth_profile`, sincronizar al `/ip/hotspot/user/profile` del router con `rate-limit` = `"{upload}k/{download}k"` (en RouterOS el formato es **rx/tx desde la perspectiva del router**, es decir upload/download del cliente; verificar contra el router real).
 5. **Deshabilitar/quitar**: refleja el cambio en `/ip/hotspot/user` y en `hotspot_users`.
 6. **Panel de consumo**: lee `/ip/hotspot/user` (bytes-in / bytes-out) y agrega por usuario y por rol.
+
+## Portal del invitado y personalización
+- `/w/{slug}`: portal público del establecimiento (con o sin sesión). Hoy es **simulado**: muestra el diseño y los campos, pero aún no conecta con el Hotspot.
+- `/admin/portal`: editor para admins (borrador, vista previa, publicación, historial, logo y fondo). `/preview/portal`: vista previa del borrador (solo admins, incrustable solo en el mismo sitio).
+- Los ajustes se validan con `lib/portal-settings.ts` al escribir y otra vez al leer. **Nunca** HTML, CSS ni JS libres del cliente; URLs solo `https://`; imágenes PNG/JPG/WebP verificadas por contenido y servidas desde `/w/{slug}/assets/` (bucket privado `portal-assets`).
+- Publicar usa `publish_portal_version()` (solo service role): archiva la publicada y sube `terms_version` si cambiaron los términos.
+- `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
+
+## Pruebas
+- `npm test`: validación de ajustes, contraste, detección de imágenes e idioma.
+- `supabase/tests/portal_rls.sql`: aislamiento entre establecimientos, permisos y publicación. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 
 ## MikroTik (setup en el router)
 ```
@@ -77,7 +89,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql` y `0005_router_cert_pin.sql` (cada uno por separado, en orden).
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql` y `0006_portal_customization.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Abrir `/register-school` para crear el establecimiento y su administrador.

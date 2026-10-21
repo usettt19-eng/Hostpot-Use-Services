@@ -239,6 +239,8 @@ Su página lo describe como gestión del acceso a internet por **zonas, horarios
 - **Fase 3:** zonas y bloqueo por categoría o dominio, con el panel de uso agregado.
 
 ## H. Personalización del portal por establecimiento (requisito)
+> **Estado: primera parte implementada** (migración `0006`, `/admin/portal`, `/w/{slug}`). Diferencias con lo diseñado abajo: los ajustes son por **establecimiento** (aún no existen las sedes); imágenes solo PNG, JPG y WebP (sin SVG); no se eliminan los metadatos de las imágenes; el rol `marketing` y la edición por sede no existen todavía; la CSP conserva `'unsafe-inline'` en scripts porque Next.js inyecta su arranque (queda pendiente un nonce); el formulario del invitado es simulado, sin OTP ni conexión al Hotspot (Fase 1).
+
 Cada establecimiento (y, si hace falta, cada local) controla cómo se ve y qué dice su portal. Esto sustituye la lista corta de `venue_portal_settings` del apartado B.
 
 ### H.1 Qué se puede personalizar
