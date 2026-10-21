@@ -173,7 +173,7 @@ Base: texto copiado de `datawifi.co` por el usuario. Es lo que la empresa dice d
 | Integraciones con redes sociales, CRM y pagos | Parcial: CRM por webhooks. Sin pagos ni login social | Decidir en G.2 |
 | Programa de partners (BPS) | Cubierto como revendedor | Fase 3 |
 | FlowMetrics: presencia y permanencia, clasificación del público en tiempo real, mapas de calor y flujos | Presencia por sondeo, diferida | Fase 4, ver G.3 |
-| SmartFilter (filtrado, a juzgar por el nombre) | Filtrado DNS, diferido | Fase 3, opcional |
+| SmartFilter: acceso a internet por zonas, horarios y perfiles, con visibilidad del uso | Filtrado DNS opcional, diferido | Horarios por rol en Fase 2; zonas y filtrado en Fase 3, ver G.4 |
 | Sectores: banca, comercial, educación, gobierno, hotelería, venue, retail, estadio, corporativo, transporte | Cuatro tipos de establecimiento | Ampliar `establishment_type` según el primer cliente real de cada sector |
 | Venta con demo y expertos regionales | No aplica al producto | Preparar un entorno demo con datos simulados |
 | Páginas legales completas | Parcial | Aviso de privacidad, términos y cookies por local, con el abogado |
@@ -213,3 +213,27 @@ Su página lo describe como análisis de presencia y permanencia, clasificación
 4. **Privacidad en el diseño.** Agregar por zona y franja horaria en el equipo o en el worker, y almacenar solo conteos, nunca trazas individuales.
 
 **Propuesta:** Fase 4, después de tener el piloto en producción y un controlador compatible instalado en un cliente real. Primero se entrega permanencia y visitas de quienes se conectan (ya incluido), que da gran parte del valor sin el riesgo legal.
+
+### G.4 Políticas de acceso (equivalente a SmartFilter)
+Su página lo describe como gestión del acceso a internet por **zonas, horarios y perfiles**: qué se puede navegar, cuándo y dónde, con políticas flexibles y visibilidad del uso. No menciona bloqueo de malware; mi suposición anterior de "filtrado DNS" era solo una parte posible. En el portal ya existe un perfil por rol con límites de velocidad; la extensión natural es añadir políticas al mismo modelo.
+
+**Modelo propuesto**
+- `venue_zones`: zonas de un local (por ejemplo "Aulas", "Recepción", "Terraza"), cada una ligada a un servidor Hotspot o interfaz del router.
+- `access_policies`: nombre, horario semanal (ventanas permitidas por día), categorías o dominios bloqueados y lista de dominios siempre permitidos.
+- Asignación de una política a un rol, un plan de invitados o una zona.
+- `usage_events` agregados por política y categoría (solo conteos, sin historial individual).
+
+**Cómo se aplicaría en MikroTik** ⚠️ (a validar en el laboratorio)
+| Necesidad | Mecanismo posible |
+|---|---|
+| Horarios | `time=` en reglas de firewall o `/system scheduler` que activa y desactiva reglas; `limit-uptime` y `session-timeout` por perfil |
+| Zonas | Un servidor Hotspot por interfaz o puente, con su propio perfil |
+| Bloqueo por dominio | Reglas de firewall con coincidencia de nombre en TLS (`tls-host`) o entradas DNS estáticas; sin descifrar tráfico |
+| Filtrado por categoría | Redirigir el DNS de un perfil a un resolvedor con filtros de categorías mediante listas de direcciones y `dst-nat` |
+| Visibilidad del uso | Contadores del router por lista de direcciones; no registrar sitios visitados por persona |
+
+**Privacidad:** no guardar el historial de navegación de personas. Se mide por categoría y política en conjunto, y el aviso del portal debe decir qué se filtra.
+
+**Fases:**
+- **Fase 2:** horarios por rol y por plan, que ya tienen valor en escuelas, hoteles y oficinas y no requieren filtrado.
+- **Fase 3:** zonas y bloqueo por categoría o dominio, con el panel de uso agregado.
