@@ -43,7 +43,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Pruebas | `npm test` (8), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
-1. Desplegar en el servidor (`cd /opt/hotspot-portal && git pull && docker compose up -d --build`; no confirmado que se haya hecho) y probar el editor: escribir términos, guardar, publicar y subir un logo.
+1. Probar el editor en el portal desplegado: escribir términos, guardar, publicar y subir un logo (el servidor ya tiene el código de `f9eb619`).
 2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot con `/ip hotspot setup`. Falta ver `/ip dns print` y `/ip firewall filter print` antes de activarlo. Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
 3. Medir velocidad con un dispositivo real (esperado: 5 Mbps bajada, 2 de subida con el perfil Clientes). Si salen invertidas, cambiar el orden en `lib/mikrotik.ts`.
 4. **Seguridad del router:** cambiar la contraseña del usuario `portal` (la de prueba se escribió en un chat) y deshabilitar `telnet`, `ftp`, `www`, `api`.
@@ -87,7 +87,8 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-21 | Migración 0006 aplicada en Supabase (bucket privado `portal-assets` comprobado) | (este) |
+| 2026-10-21 | Portal con personalización desplegado en el servidor (build correcto, contenedor iniciado); falta probar el editor | `b268739` |
+| 2026-10-21 | Migración 0006 aplicada en Supabase (bucket privado `portal-assets` comprobado) | `b268739` |
 | 2026-10-21 | Esta bitácora y su regla de uso en `CLAUDE.md` | `5747c95` |
 | 2026-10-21 | Personalización del portal por establecimiento: editor, portal público, versiones, migración 0006, pruebas | `f9eb619` |
 | 2026-10-21 | Requisito de personalización en el diseño | `6069719` |
