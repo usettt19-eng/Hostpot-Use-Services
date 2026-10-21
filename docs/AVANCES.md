@@ -87,7 +87,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-21 | Esta bitácora y su regla de uso en `CLAUDE.md` | (este) |
+| 2026-10-21 | Esta bitácora y su regla de uso en `CLAUDE.md` | `5747c95` |
 | 2026-10-21 | Personalización del portal por establecimiento: editor, portal público, versiones, migración 0006, pruebas | `f9eb619` |
 | 2026-10-21 | Requisito de personalización en el diseño | `6069719` |
 | 2026-10-21 | Comparativa con Datawifi: SmartWiFi, FlowMetrics, SmartFilter, DSM | `343a8e4`, `a230681`, `b2f454b` |
