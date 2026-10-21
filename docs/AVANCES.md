@@ -3,7 +3,7 @@
 > **Fuente de contexto.** Claude lee este archivo al empezar cada sesión y lo **actualiza al terminar cada cambio** (estado, pendientes y registro). Si algo aquí contradice la realidad, se corrige aquí primero.
 > **Nunca** se escriben aquí contraseñas, claves ni tokens. Solo dónde están guardados.
 
-Última actualización: 2026-10-21
+Última actualización: 2026-10-21 (migración 0006 aplicada)
 
 ## 1. Qué es
 Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pubs, hoteles). Cada establecimiento es un tenant aislado con RLS. Un administrador aprueba usuarios y el portal crea su usuario en el Hotspot de un MikroTik con límites según su rol. Se está evolucionando hacia una plataforma de WiFi inteligente para invitados (portal cautivo con marca propia, analítica y marketing). Detalle técnico: `CLAUDE.md`. Diseño: `docs/DISENO-SMARTWIFI.md`.
@@ -27,7 +27,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | 0003 | Valores nuevos de `user_role` | Aplicada |
 | 0004 | Tipo de establecimiento y semilla de anchos de banda por tipo | Aplicada |
 | 0005 | Huella del certificado del router | Aplicada (comprobada) |
-| 0006 | Personalización del portal: `portal_versions`, publicación atómica, bucket `portal-assets` | **Pendiente de ejecutar y comprobar en Supabase** |
+| 0006 | Personalización del portal: `portal_versions`, publicación atómica, bucket `portal-assets` | Aplicada. Bucket comprobado (`portal-assets`, privado). La tabla `portal_versions` se da por creada porque el bucket es lo último que hace el script; no se ha mostrado su conteo |
 
 ## 4. Funcionalidad hecha
 | Área | Qué hay | Verificado |
@@ -43,7 +43,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Pruebas | `npm test` (8), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
-1. Ejecutar `0006` en Supabase y desplegar (`cd /opt/hotspot-portal && git pull && docker compose up -d --build`); probar el editor, publicar y subir un logo.
+1. Desplegar en el servidor (`cd /opt/hotspot-portal && git pull && docker compose up -d --build`; no confirmado que se haya hecho) y probar el editor: escribir términos, guardar, publicar y subir un logo.
 2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot con `/ip hotspot setup`. Falta ver `/ip dns print` y `/ip firewall filter print` antes de activarlo. Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
 3. Medir velocidad con un dispositivo real (esperado: 5 Mbps bajada, 2 de subida con el perfil Clientes). Si salen invertidas, cambiar el orden en `lib/mikrotik.ts`.
 4. **Seguridad del router:** cambiar la contraseña del usuario `portal` (la de prueba se escribió en un chat) y deshabilitar `telnet`, `ftp`, `www`, `api`.
@@ -87,6 +87,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-21 | Migración 0006 aplicada en Supabase (bucket privado `portal-assets` comprobado) | (este) |
 | 2026-10-21 | Esta bitácora y su regla de uso en `CLAUDE.md` | `5747c95` |
 | 2026-10-21 | Personalización del portal por establecimiento: editor, portal público, versiones, migración 0006, pruebas | `f9eb619` |
 | 2026-10-21 | Requisito de personalización en el diseño | `6069719` |
