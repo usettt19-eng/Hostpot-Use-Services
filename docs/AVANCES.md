@@ -107,7 +107,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
-| 2026-10-22 | Panel `/platform` para el dueño de la plataforma (lista y suspender/reactivar establecimientos), migración 0010 | (este) |
+| 2026-10-22 | Panel `/platform` para el dueño de la plataforma (lista y suspender/reactivar establecimientos), migración 0010 | `662ca30` |
 | 2026-10-22 | Confirmado: la migración 0008 ya estaba aplicada (error `42P07` al repetirla); bitácora corregida | `0fc37fd` |
 | 2026-10-22 | Desplegado en el servidor el código de horarios, suspensiones y equipos fijos (build correcto). Faltan las migraciones 0008 y 0009 en Supabase y las pruebas con router/alumno reales | `8ea0c0f` |
 | 2026-10-22 | Equipos fijos: migración 0009, página `/admin/fixed-devices`, excepciones por MAC en el Hotspot (`ip-binding bypassed`) y comprobación de estado contra el router. Probado con pruebas unitarias y un router falso; **pendiente** de probar en el router real (`/ip hotspot ip-binding print`) | `da89c46` |
