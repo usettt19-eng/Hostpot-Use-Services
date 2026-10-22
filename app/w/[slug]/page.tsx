@@ -20,7 +20,7 @@ export default async function GuestPortal({
   const locale = pickLocale(lang, (await headers()).get("accept-language"), settings.default_locale);
   return (
     <PortalView
-      staffLoginUrl={parseLoginUrl(sp.login ?? "") ?? undefined} staffDst={sanitizeOrig(sp.orig ?? "")}
+      staffLoginUrl={parseLoginUrl(sp.login ?? "") ?? undefined} staffDst={settings.redirect_url || sanitizeOrig(sp.orig ?? "")}
       slug={tenant.slug} settings={settings} locale={locale} termsVersion={termsVersion}
       hs={{ mac: sp.mac ?? "", ip: sp.ip ?? "", login: sp.login ?? "", orig: sp.orig ?? "", err: sp.err }}
       assetBase={`/w/${tenant.slug}/assets`} langBase={`/w/${tenant.slug}`}
