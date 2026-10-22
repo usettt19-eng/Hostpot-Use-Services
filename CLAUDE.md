@@ -47,6 +47,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 1. **/register-school**: crea tenant (con su tipo) + admin (superadmin activo). Muestra el código/slug de la escuela.
 2. **/register**: el usuario ingresa el slug, se crea `profiles` con `status = 'pending'`.
 3. **Aprobación (admin)**: pasa a `active`, asigna `role`, crea el usuario en el router y la fila en `hotspot_users`.
+3b. **Crear usuario (admin)**: desde **Usuarios**, el admin crea la cuenta ya activa (`createUser` → `lib/create-user.ts`, con pasos y deshacer probados): cuenta de acceso con contraseña aleatoria que no se entrega, perfil activo, usuario del Hotspot y registro. Muestra el usuario y la contraseña del WiFi una sola vez. El nombre de usuario es único (`lib/usernames.ts`: `ana`, `ana2`…; no usa el prefijo `g_`, reservado para invitados) y se aplica también al aprobar.
 4. **Ancho de banda**: al guardar un `bandwidth_profile`, sincronizar al `/ip/hotspot/user/profile` del router con `rate-limit` = `"{upload}k/{download}k"` (en RouterOS el formato es **rx/tx desde la perspectiva del router**, es decir upload/download del cliente; verificar contra el router real).
 5. **Deshabilitar/quitar**: refleja el cambio en `/ip/hotspot/user` y en `hotspot_users`.
 6. **Panel de consumo**: lee `/ip/hotspot/user` (bytes-in / bytes-out) y agrega por usuario y por rol.
@@ -68,7 +69,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
-- `npm test` (60 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `npm test` (74 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
 - `supabase/tests/base_rls.sql`: aislamiento de las tablas originales (establecimientos, perfiles, planes, usuarios del Hotspot, consumo y credenciales del router), con pendientes y suspendidos sin datos, y escrituras prohibidas al cliente.
 - `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 

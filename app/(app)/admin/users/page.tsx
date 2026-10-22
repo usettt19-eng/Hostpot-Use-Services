@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { setUserStatus, toggleHotspot, removeHotspot } from "@/app/actions";
 import { ApproveForm } from "./approve-form";
+import { CreateUserForm } from "./create-form";
 import { rolesFor, ROLE_LABEL, isAdminRole } from "@/lib/roles";
 
 const STATUS_LABEL: Record<string, string> = { pending: "Pendiente", active: "Activo", suspended: "Suspendido" };
@@ -21,6 +22,8 @@ export default async function UsersPage() {
   const byProfile = new Map((hotspot ?? []).map((h) => [h.profile_id, h]));
 
   return (
+    <>
+    <CreateUserForm roles={roles} />
     <div className="card">
       <h1>Usuarios</h1>
       <div className="scroll">
@@ -81,5 +84,6 @@ export default async function UsersPage() {
         </table>
       </div>
     </div>
+    </>
   );
 }

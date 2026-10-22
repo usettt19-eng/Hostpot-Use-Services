@@ -4,12 +4,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { encryptSecret } from "@/lib/crypto";
+import { uniqueUsername } from "@/lib/usernames";
+import { createUserAccount } from "@/lib/create-user";
 import {
   createHotspotUser,
   deleteHotspotUser,
   setHotspotUserDisabled,
   syncBandwidthProfile,
   normalizeFingerprint,
+  isConfigured,
+  listHotspotUserNames,
 } from "@/lib/mikrotik";
 import { isAdminRole, isEstablishmentType, rolesFor, DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 
@@ -140,6 +144,22 @@ export async function setUserStatus(fd: FormData) {
   revalidatePath("/admin/users");
 }
 
+/** Nombres de usuario de Hotspot ya tomados en el establecimiento: los de la base y los que existan en el router. */
+async function takenUsernames(
+  supabase: Awaited<ReturnType<typeof createClient>>, tenantId: string, router: Parameters<typeof isConfigured>[0]
+) {
+  const { data } = await supabase.from("hotspot_users").select("username").eq("tenant_id", tenantId);
+  const taken = new Set((data ?? []).map((r) => r.username.toLowerCase()));
+  if (isConfigured(router)) {
+    try {
+      for (const n of await listHotspotUserNames(router)) taken.add(n);
+    } catch {
+      /* si el router no responde, la creación en el router fallará por sí sola si hay un choque */
+    }
+  }
+  return taken;
+}
+
 /**
  * Aprueba al usuario y le crea su usuario de Hotspot con el perfil de su rol.
  * La contraseña del Hotspot se devuelve una sola vez (no se almacena).
@@ -157,7 +177,7 @@ export async function approveUser(_: unknown, fd: FormData): Promise<{ error?: s
 
   const admin = createAdminClient();
   const { data: u } = await admin.auth.admin.getUserById(id);
-  const username = (u.user?.email ?? id).split("@")[0];
+  const username = uniqueUsername(u.user?.email ?? id, await takenUsernames(supabase, me.tenant_id, tenant));
   const typed = String(fd.get("hotspot_password") ?? "").trim();
   if (typed && typed.length < 6) return { error: "La contraseña del Hotspot debe tener al menos 6 caracteres" };
   const password = typed || crypto.randomUUID().replace(/-/g, "").slice(0, 10);
@@ -233,4 +253,65 @@ export async function saveRouter(fd: FormData) {
     throw new Error("No se pudo guardar la conexión del router");
   }
   revalidatePath("/admin/bandwidth");
+}
+
+/**
+ * El administrador crea la cuenta directamente: queda activa, con su usuario de Hotspot, y las credenciales
+ * se muestran una sola vez. La cuenta del portal lleva una contraseña aleatoria que no se entrega (la persona
+ * usa solo el WiFi). La lógica y el orden de los pasos, con su deshacer, están en `lib/create-user.ts`.
+ */
+export async function createUser(_: unknown, fd: FormData): Promise<{ error?: string; username?: string; password?: string; name?: string }> {
+  const { supabase, me, tenant, roles } = await requireAdmin();
+  const admin = createAdminClient();
+  const log = (what: string, e: unknown) => console.error(`createUser ${what}:`, e instanceof Error ? e.message : String(e));
+
+  const result = await createUserAccount(
+    {
+      roles,
+      async findPlan(role) {
+        const { data } = await supabase.from("bandwidth_profiles").select("name, download_kbps, upload_kbps")
+          .eq("tenant_id", me.tenant_id).eq("role", role).single();
+        return data ?? null;
+      },
+      takenUsernames: () => takenUsernames(supabase, me.tenant_id, tenant),
+      async createAuthUser(email) {
+        const { data, error } = await admin.auth.admin.createUser({
+          email, password: crypto.randomUUID() + crypto.randomUUID(), email_confirm: true,
+        });
+        if (error || !data.user) {
+          return { error: /already|registered|exists/i.test(error?.message ?? "") ? "Ya existe una cuenta con ese correo" : "No se pudo crear la cuenta" };
+        }
+        return { id: data.user.id };
+      },
+      async deleteAuthUser(id) { await admin.auth.admin.deleteUser(id); },
+      async insertProfile(row) {
+        const { error } = await admin.from("profiles").insert({
+          ...row, tenant_id: me.tenant_id, requested_role: row.role, status: "active",
+        });
+        if (error) log("perfil", error);
+        return error ? error.message : null;
+      },
+      async deleteProfile(id) { await admin.from("profiles").delete().eq("id", id); },
+      router: {
+        async ensureProfile(plan) { await syncBandwidthProfile(tenant, plan.name, plan.download_kbps, plan.upload_kbps); },
+        async createHotspotUser(u, p, profile) {
+          try { await createHotspotUser(tenant, u, p, profile); } catch (e) { log("router", e); throw e; }
+        },
+        async deleteHotspotUser(u) { await deleteHotspotUser(tenant, u); },
+      },
+      async insertHotspotUser(row) {
+        const { error } = await admin.from("hotspot_users").insert({ ...row, tenant_id: me.tenant_id });
+        if (error) log("hotspot_users", error);
+        return error ? error.message : null;
+      },
+      randomPassword: () => crypto.randomUUID().replace(/-/g, "").slice(0, 10),
+    },
+    {
+      fullName: String(fd.get("full_name") ?? ""), email: String(fd.get("email") ?? ""),
+      role: String(fd.get("role") ?? ""), hotspotPassword: String(fd.get("hotspot_password") ?? ""),
+    }
+  );
+  if (!result.ok) return { error: result.error };
+  revalidatePath("/admin/users");
+  return { username: result.username, password: result.password, name: result.name };
 }

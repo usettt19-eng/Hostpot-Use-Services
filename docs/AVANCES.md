@@ -71,6 +71,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 - Primer canal de OTP (propuesta: correo y luego WhatsApp), retención de datos (propuesta: 24 meses, a confirmar con un abogado), pagos, login social, sectores adicionales, proveedor de IA, hardware de producción.
 
 ## 7. Problemas conocidos y lecciones
+- **Personal sin recuperación de contraseña del WiFi:** no hay botón para generar otra; hoy se cambia a mano en el router. La cuenta del portal que crea el administrador lleva una contraseña aleatoria que no se entrega (esas personas usan solo el WiFi).
 - **`useSearchParams` en `/register` (2026-10-22):** envolver la página en `Suspense` hacía que el formulario no viniera en el HTML del servidor (solo tras ejecutar JavaScript), lo que arriesga los mini-navegadores de portal cautivo. Se corrigió leyendo `searchParams` en el servidor (`app/register/page.tsx`) y pasando el código a `register-form.tsx`. Una comprobación con `curl` y `grep` lo detectó.
 - **Contraseña expuesta en el chat (2026-10-22):** la contraseña de administración de la malla Linksys quedó escrita en este chat. Cambiarla es pendiente.
 - Un `401` del router con la contraseña correcta en `curl`: la contraseña guardada en el portal era otra (autocompletado del navegador). Se desactivó el autocompletado en esos campos.
@@ -95,6 +96,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Crear usuario desde **Usuarios** (`createUser`, `lib/create-user.ts`) con nombres de usuario únicos (`lib/usernames.ts`, también al aprobar). 74 pruebas, con los caminos de fallo y su deshacer. **Pendiente** de probar con Supabase Auth y el router reales | (este) |
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |

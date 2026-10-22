@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
-  listIpBindings, removeIpBinding, type RouterConfig,
+  listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
 // Router falso por HTTPS con certificado autofirmado: comprueba el uso de la API REST (no es un router real)
@@ -101,4 +101,8 @@ test("excepciones de equipos fijos: alta, listado y baja", async () => {
 
 test("borrar una excepción que ya no existe no es un error", async () => {
   await removeIpBinding(cfg, "*GONE");
+});
+
+test("nombres de usuarios del Hotspot, en minúsculas", async () => {
+  assert.deepEqual([...(await listHotspotUserNames(cfg))].sort(), ["g_abc", "srubend"]);
 });

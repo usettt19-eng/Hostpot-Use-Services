@@ -198,6 +198,12 @@ export async function createGuestUser(c: RouterConfig, u: GuestUserSpec) {
 
 export type GuestUserInfo = { name: string; bytesIn: number; bytesOut: number; uptime: string };
 
+/** Nombres de todos los usuarios del Hotspot (en minúsculas), para elegir un nombre que no choque. */
+export async function listHotspotUserNames(c: RouterConfig): Promise<Set<string>> {
+  const all = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/user");
+  return new Set(all.map((u) => (u.name ?? "").toLowerCase()).filter(Boolean));
+}
+
 /** Usuarios temporales de invitados (nombre "g_…") con sus contadores. */
 export async function listGuestUsers(c: RouterConfig): Promise<GuestUserInfo[]> {
   const all = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/user");
