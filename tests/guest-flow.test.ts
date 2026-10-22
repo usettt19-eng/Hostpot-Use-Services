@@ -150,6 +150,30 @@ test("la URL de destino configurada por el local tiene prioridad", async () => {
   assert.equal(new URL(r.redirect).searchParams.get("dst"), "https://minegocio.com/hola");
 });
 
+test("escuela con horario cerrado: no se crea nada y se indica cuándo abre", async () => {
+  const s = setup();
+  s.input.schedule = { openLeft: null, nextText: "hoy a las 15:00" };
+  const r = await connectGuest(s.deps, s.input) as any;
+  assert.equal(r.ok, false);
+  assert.match(r.error, /Fuera del horario de acceso\. Podrás conectarte hoy a las 15:00/);
+  assert.ok(!s.calls.includes("upsertGuest") && !s.calls.includes("createGuestUser"));
+});
+
+test("escuela con horario abierto: el acceso dura hasta que cierra la ventana", async () => {
+  const s = setup();
+  s.input.schedule = { openLeft: 45, nextText: null };
+  const r = await connectGuest(s.deps, s.input) as any;
+  assert.equal(r.ok, true);
+  assert.equal(s.created[0].limitUptime, "45m");
+});
+
+test("el horario nunca alarga la sesión: si la ventana cierra después, manda session_minutes", async () => {
+  const s = setup();
+  s.input.schedule = { openLeft: 600, nextText: null };
+  await connectGuest(s.deps, s.input);
+  assert.equal(s.created[0].limitUptime, "1h30m"); // session_minutes del escenario = 90
+});
+
 test("un destino original malicioso se descarta", async () => {
   const s = setup(); s.input.hs.orig = "javascript:alert(1)";
   const r = await connectGuest(s.deps, s.input) as any;

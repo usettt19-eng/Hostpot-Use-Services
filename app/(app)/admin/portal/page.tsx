@@ -1,6 +1,8 @@
 import { getPortalState, requireAdminTenant } from "@/lib/portal";
 import { defaultSettings } from "@/lib/portal-settings";
 import { Assets, EditorForm, PreviewFrame, PublishPanel, RestoreButton } from "./editor";
+import { ScheduleForm } from "./schedule";
+import { createAdminClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ export default async function PortalPage() {
       <PublishPanel hasDraft={!!draft} published={published?.version ?? null} />
       <EditorForm key={`${stamp}-${JSON.stringify(settings).length}`} s={settings} />
       <Assets s={settings} />
+      {ctx.type === "school" && <ScheduleCard tenantId={ctx.tenantId} />}
       <PreviewFrame version={`${stamp}-${JSON.stringify(settings).length}`} />
       <div className="card scroll">
         <h2>Historial</h2>
@@ -43,4 +46,15 @@ export default async function PortalPage() {
       </div>
     </>
   );
+}
+
+async function ScheduleCard({ tenantId }: { tenantId: string }) {
+  const { data } = await createAdminClient()
+    .from("access_windows").select("weekday, start_min, end_min").eq("tenant_id", tenantId);
+  const pad = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const rows = Array.from({ length: 7 }, (_, i) => {
+    const w = (data ?? []).find((x) => x.weekday === i + 1);
+    return { on: !!w, start: w ? pad(w.start_min) : "07:00", end: w ? pad(w.end_min) : "14:00" };
+  });
+  return <ScheduleForm initial={rows} />;
 }

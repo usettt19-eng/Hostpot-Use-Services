@@ -42,6 +42,8 @@ export type FlowDeps = {
 };
 
 export type FlowInput = {
+  // Horario de acceso (solo escuelas). openLeft: minutos que quedan de la ventana abierta, o null si está cerrada.
+  schedule?: { openLeft: number | null; nextText: string | null };
   tenantId: string;
   settings: PortalSettings;
   termsVersion: number;
@@ -86,6 +88,13 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   if (st.fields.phone === "required" && !phone) return fail("Escribe un teléfono válido");
 
   if (!deps.router) return fail("Este local todavía no tiene el router configurado");
+
+  // Horario: fuera de la ventana no hay acceso, y dentro el acceso dura hasta que cierre
+  if (input.schedule && input.schedule.openLeft === null) {
+    return fail(input.schedule.nextText
+      ? `Fuera del horario de acceso. Podrás conectarte ${input.schedule.nextText}`
+      : "Fuera del horario de acceso");
+  }
 
   // Límites de uso (una sola IP no puede crear sesiones sin parar; el local tampoco)
   const since = new Date(deps.now().getTime() - 60_000).toISOString();
@@ -133,7 +142,8 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
     await deps.router.ensureProfile(input.plan.name, input.plan.downloadKbps, input.plan.uploadKbps);
     await deps.router.createGuestUser({
       name: username, password, profile: input.plan.name,
-      limitUptime: routerDuration(st.session_minutes), comment: `guest:${sessionId}`,
+      limitUptime: routerDuration(Math.min(st.session_minutes, input.schedule?.openLeft ?? Infinity)),
+      comment: `guest:${sessionId}`,
     });
   } catch {
     await deps.db.updateSession(sessionId, { status: "failed" });

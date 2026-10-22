@@ -120,13 +120,23 @@ async function requireAdmin() {
 }
 
 export async function setUserStatus(fd: FormData) {
-  const { supabase, me, roles } = await requireAdmin();
+  const { supabase, me, roles, tenant } = await requireAdmin();
   const id = String(fd.get("id"));
   const status = String(fd.get("status"));
   const role = String(fd.get("role") ?? "");
   const patch: Record<string, string> = { status };
   if (role && roles.includes(role)) patch.role = role;
   await supabase.from("profiles").update(patch).eq("id", id).eq("tenant_id", me.tenant_id);
+
+  // Una cuenta suspendida no debe conservar el WiFi: se deshabilita su usuario del Hotspot (y se reactiva al volver)
+  if (status === "suspended" || status === "active") {
+    const { data: hu } = await supabase
+      .from("hotspot_users").select("username").eq("profile_id", id).eq("tenant_id", me.tenant_id).maybeSingle();
+    if (hu) {
+      await setHotspotUserDisabled(tenant, hu.username, status === "suspended").catch((e) =>
+        console.error("setUserStatus hotspot:", e instanceof Error ? e.message : "error"));
+    }
+  }
   revalidatePath("/admin/users");
 }
 

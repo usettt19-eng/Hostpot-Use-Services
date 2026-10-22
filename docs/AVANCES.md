@@ -45,6 +45,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Pruebas | `npm test` (8), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
+00. Aplicar `0008_access_windows.sql` en Supabase y probar horarios con un alumno en la red de pruebas. Corregir límite de dispositivos (personal 2–3) por perfil de rol. Separar equipos fijos (impresoras, pantallas) con excepción por MAC o red propia.
 0. El acceso de invitados funciona en el router de prueba. Falta: comprobar **Visitantes** y las sesiones `g_…`, probar iOS y Android, y validar los puntos ⚠️ restantes de `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
 1. Probar el editor en el portal desplegado: escribir términos, guardar, publicar y subir un logo (el servidor ya tiene el código de `f9eb619`).
 2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot. **Ejecutado**: Hotspot `hotspot-test` en `bridge-hotspot` (`ether3`, `192.168.200.0/24`), con DHCP propio; la redirección al login funciona y `srubend` inició sesión (visible en `/ip hotspot active`). Falta medir velocidad y ver el consumo en el portal. Comandos, verificación y reversión en `docs/ROUTER-PRUEBA.md`. Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
@@ -93,6 +94,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Horarios de acceso para escuelas: migración 0008 (`access_windows`), `lib/schedule.ts` (hora de Panamá), límite de sesión hasta el cierre de la ventana, pantalla en `/admin/portal` solo para escuelas. Corrección: al suspender una cuenta se deshabilita su usuario del Hotspot. Pendiente: aplicar 0008 en Supabase, probar con un alumno real y limitar dispositivos por perfil | (este) |
 | 2026-10-22 | Pruebas de aislamiento de las tablas originales (`supabase/tests/base_rls.sql`): pasan en Postgres local con las migraciones 0001-0007 y fallan si se relaja una política. Pendientes y suspendidos no ven planes ni usuarios | `b997f1c` |
 | 2026-10-22 | Proceso periódico de invitados: `/api/cron/guests-sync` autorizado con `CRON_SECRET` (401 sin secreto, probado) y cron del servidor cada minuto (ver `docs/DESPLIEGUE.md` 3b). Pendiente de desplegar y activar en el servidor | `2cea055` |
 | 2026-10-22 | Velop en AP con IP fija en la red de pruebas (`velop-1` 192.168.200.2, `velop-2` 192.168.200.3). Investigación de la API local JNAP: `GET_DEVICES` y `connections[].parentDeviceID` confirmados en el código de `pyvelop`; el nodo responde en `/JNAP/`, pero rechaza la autorización por contraseña (`_ErrorUnauthorized`). **Pendiente**: la API no es accesible con la contraseña de la app; el dato por nodo requiere cable directo a cada puerto o un método de autorización distinto | `4177a4a` |

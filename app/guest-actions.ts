@@ -10,6 +10,7 @@ import { connectGuest, type FlowDb, type RouterApi } from "@/lib/guest-flow";
 import { createGuestUser, findHostByAddress, isConfigured, syncBandwidthProfile } from "@/lib/mikrotik";
 import { DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 import { pickLocale } from "@/lib/portal-settings";
+import { minutesOpenLeft, nextOpeningText, type Window } from "@/lib/schedule";
 import { allow } from "@/lib/rate-limit";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean } | null;
@@ -93,6 +94,18 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
     .eq("tenant_id", tenant.id).eq("role", role).maybeSingle();
   if (!plan) return { error: "Este local no tiene un plan de red configurado" };
 
+  // Escuelas: el acceso del visitante sigue el horario configurado (si lo hay)
+  let schedule: { openLeft: number | null; nextText: string | null } | undefined;
+  if (tenant.type === "school") {
+    const { data: rows } = await createAdminClient()
+      .from("access_windows").select("weekday, start_min, end_min").eq("tenant_id", tenant.id);
+    if (rows?.length) {
+      const windows: Window[] = rows.map((r) => ({ weekday: r.weekday, start: r.start_min, end: r.end_min }));
+      const now = new Date();
+      schedule = { openLeft: minutesOpenLeft(windows, now), nextText: nextOpeningText(windows, now) };
+    }
+  }
+
   const result = await connectGuest(
     {
       now: () => new Date(), router, db: makeDb(),
@@ -101,6 +114,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
       randomPassword: () => randomBytes(9).toString("base64url"),
     },
     {
+      schedule,
       tenantId: tenant.id, settings, termsVersion,
       termsText: settings.terms[locale].trim() || settings.terms[settings.default_locale].trim(),
       plan: { name: plan.name, downloadKbps: plan.download_kbps, uploadKbps: plan.upload_kbps },

@@ -8,6 +8,7 @@ import {
   MAX_IMAGE_BYTES, defaultSettings, parseSettings, publishProblems, sniffImage, type PortalSettings,
 } from "@/lib/portal-settings";
 import { FIELD_MODES, METHODS, type LOCALES } from "@/lib/portal-theme";
+import { parseHHMM, validateWindows } from "@/lib/schedule";
 
 export type PortalState = { error?: string; ok?: string; warnings?: string[] } | null;
 
@@ -92,6 +93,35 @@ export async function publishDraft(): Promise<PortalState> {
   }
   revalidatePath("/admin/portal");
   return { ok: `Versión ${draft.version} publicada` };
+}
+
+/** Guarda el horario de acceso (solo escuelas). Reemplaza todas las ventanas del establecimiento. */
+export async function saveSchedule(_: PortalState, fd: FormData): Promise<PortalState> {
+  const ctx = await requireAdminTenant();
+  if (ctx.type !== "school") return { error: "Los horarios solo aplican a escuelas" };
+  const windows: { weekday: number; start: number; end: number }[] = [];
+  for (let d = 1; d <= 7; d++) {
+    if (fd.get(`on_${d}`) !== "on") continue;
+    const start = parseHHMM(str(fd, `start_${d}`));
+    const end = parseHHMM(str(fd, `end_${d}`));
+    if (start === null || end === null) return { error: `Hora inválida el día ${d}` };
+    windows.push({ weekday: d, start, end });
+  }
+  const problem = validateWindows(windows);
+  if (problem) return { error: problem };
+  const db = createAdminClient();
+  await db.from("access_windows").delete().eq("tenant_id", ctx.tenantId);
+  if (windows.length) {
+    const { error } = await db.from("access_windows").insert(
+      windows.map((w) => ({ tenant_id: ctx.tenantId, weekday: w.weekday, start_min: w.start, end_min: w.end }))
+    );
+    if (error) {
+      console.error("saveSchedule:", error.message);
+      return { error: "No se pudo guardar el horario" };
+    }
+  }
+  revalidatePath("/admin/portal");
+  return { ok: windows.length ? "Horario guardado" : "Horario quitado: los alumnos podrán conectarse en cualquier momento" };
 }
 
 export async function discardDraft(): Promise<PortalState> {
