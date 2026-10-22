@@ -91,7 +91,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-22 | Walled garden creado y verificado en el router de prueba (`connect.useservices.company` y `187.33.153.78:443`) | (este) |
+| 2026-10-22 | Walled garden creado y verificado en el router de prueba (`connect.useservices.company` y `187.33.153.78:443`) | `c1cf74d` |
 | 2026-10-22 | El portal sirve el `login.html` del Hotspot por establecimiento (`/w/{código}/mikrotik-login.html`) para descargarlo desde el router con `/tool fetch`: el renombrado por comandos falló (`expected end of command`) y los archivos están en `flash/hotspot/`. Pendiente de desplegar y probar | `aeba69c` |
 | 2026-10-22 | Acceso de invitados desplegado en el servidor (comprobado con el campo `hs_ip` del formulario en `/w/use-test`; contenedor arriba). Pendiente: `login.html` en el router (el walled garden ya está creado y verificado: una regla por nombre y otra por IP, con el comentario `portal`) | `a7925f6` |
 | 2026-10-22 | Migración 0007 aplicada en Supabase (tablas `guests`, `guest_consents` y `guest_sessions` comprobadas) | `a8a2d99` |
