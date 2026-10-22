@@ -3,7 +3,7 @@
 > **Fuente de contexto.** Claude lee este archivo al empezar cada sesión y lo **actualiza al terminar cada cambio** (estado, pendientes y registro). Si algo aquí contradice la realidad, se corrige aquí primero.
 > **Nunca** se escriben aquí contraseñas, claves ni tokens. Solo dónde están guardados.
 
-Última actualización: 2026-10-21 (migración 0006 aplicada)
+Última actualización: 2026-10-22
 
 ## 1. Qué es
 Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pubs, hoteles). Cada establecimiento es un tenant aislado con RLS. Un administrador aprueba usuarios y el portal crea su usuario en el Hotspot de un MikroTik con límites según su rol. Se está evolucionando hacia una plataforma de WiFi inteligente para invitados (portal cautivo con marca propia, analítica y marketing). Detalle técnico: `CLAUDE.md`. Diseño: `docs/DISENO-SMARTWIFI.md`.
@@ -34,7 +34,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 |---|---|---|
 | Registro | `/register-school` (tipo de establecimiento) y `/register` (roles según tipo) | En producción de pruebas |
 | Aprobación | Admin aprueba, fija rol, crea usuario en el Hotspot y muestra la contraseña una sola vez | Probado con un usuario real: aparece en `/ip hotspot user` con su perfil |
-| Perfiles de velocidad | Se crean y sincronizan en el router al aprobar o al pulsar Aplicar. Formato `rate-limit=subida/bajada` (p. ej. `2048k/5120k`) | Creado y visible en el router; **falta medir velocidad con un dispositivo real** |
+| Perfiles de velocidad | Se crean y sincronizan en el router al aprobar o al pulsar Aplicar. Formato `rate-limit=subida/bajada` (p. ej. `2048k/5120k`) | Creado y visible en el router; un usuario ya inició sesión en el Hotspot de prueba; **falta medir velocidad con un dispositivo real** |
 | Conexión al router | URL, usuario, contraseña cifrada (AES-256-GCM) y huella SHA-256 fijada | Funciona por el túnel |
 | Consumo | Lee `/ip/hotspot/user`. Sin historial guardado todavía | Carga sin error |
 | Portal personalizable | Editor `/admin/portal`, vista previa, publicación, historial, logo y fondo; portal público `/w/{código}` (simulado) | Pruebas unitarias, RLS en Postgres local y portal público contra un Supabase simulado. **El editor y la subida de imágenes no se han probado con sesión real** |
@@ -44,7 +44,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 
 ## 5. Pendientes (por prioridad)
 1. Probar el editor en el portal desplegado: escribir términos, guardar, publicar y subir un logo (el servidor ya tiene el código de `f9eb619`).
-2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot. Comandos, verificación y reversión en `docs/ROUTER-PRUEBA.md` (aún sin ejecutar). Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
+2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot. **Ejecutado**: Hotspot `hotspot-test` en `bridge-hotspot` (`ether3`, `192.168.200.0/24`), con DHCP propio; la redirección al login funciona y `srubend` inició sesión (visible en `/ip hotspot active`). Falta medir velocidad y ver el consumo en el portal. Comandos, verificación y reversión en `docs/ROUTER-PRUEBA.md`. Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
 3. Medir velocidad con un dispositivo real (esperado: 5 Mbps bajada, 2 de subida con el perfil Clientes). Si salen invertidas, cambiar el orden en `lib/mikrotik.ts`.
 4. **Seguridad del router:** cambiar la contraseña del usuario `portal` (la de prueba se escribió en un chat) y deshabilitar `telnet`, `ftp`, `www`, `api`.
 5. **Seguridad del servidor:** los puertos de Postgres/pooler (5432, 5433, 6543, 6544) están abiertos a internet y `ufw` está inactivo. Es de otras apps, pero es el riesgo mayor. Docker salta `ufw`: hay que publicarlos en `127.0.0.1`.
@@ -87,6 +87,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Hotspot de prueba configurado y probado: redirección al login y sesión de `srubend` activa (192.168.200.198). Se ve el login estándar de MikroTik: el portal personalizado aún no está conectado al Hotspot | (este) |
 | 2026-10-21 | Guía de configuración del Hotspot de prueba (`docs/ROUTER-PRUEBA.md`), no ejecutada todavía | `9d5280d` |
 | 2026-10-21 | Portal con personalización desplegado; `/w/use-test` responde 200 en producción (encuentra el establecimiento; muestra valores por defecto porque aún no se publica); sin errores en los logs; se ve bien en el navegador del usuario (valores por defecto, términos "pendientes de configurar"). Falta probar el editor | `b268739` |
 | 2026-10-21 | Migración 0006 aplicada en Supabase (bucket privado `portal-assets` comprobado) | `b268739` |

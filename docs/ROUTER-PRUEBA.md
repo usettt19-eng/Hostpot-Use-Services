@@ -1,5 +1,7 @@
 # Hotspot de prueba en el MikroTik (red aparte en `ether3`)
 
+Estado (2026-10-22): pasos 1 a 4 aplicados y la sesión de `srubend` funcionó. Pendiente medir la velocidad.
+
 Objetivo: probar el flujo actual (usuario aprobado en el portal → inicia sesión en el Hotspot → límite de velocidad → consumo) **sin tocar las redes en uso** (`bridge1`, `bridge2`, VLAN, `pppoe-out1`).
 Los comandos son no interactivos (sin el asistente `/ip hotspot setup`) para poder revertirlos. Pégalos **bloque por bloque**: la terminal del router se ha confundido con pegados largos.
 ⚠️ = no verificado en un router real; se confirma al probar.
