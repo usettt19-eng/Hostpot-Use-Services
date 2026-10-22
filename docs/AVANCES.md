@@ -45,7 +45,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Pruebas | `npm test` (8), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
-0. Desplegar (`git pull && docker compose up -d --build`; la migración 0007 ya está aplicada) y seguir `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
+0. El código del acceso de invitados ya está desplegado (comprobado: el portal público trae el formulario nuevo); falta configurar el router: seguir `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
 1. Probar el editor en el portal desplegado: escribir términos, guardar, publicar y subir un logo (el servidor ya tiene el código de `f9eb619`).
 2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot. **Ejecutado**: Hotspot `hotspot-test` en `bridge-hotspot` (`ether3`, `192.168.200.0/24`), con DHCP propio; la redirección al login funciona y `srubend` inició sesión (visible en `/ip hotspot active`). Falta medir velocidad y ver el consumo en el portal. Comandos, verificación y reversión en `docs/ROUTER-PRUEBA.md`. Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
 3. Medir velocidad con un dispositivo real (esperado: 5 Mbps bajada, 2 de subida con el perfil Clientes). Si salen invertidas, cambiar el orden en `lib/mikrotik.ts`.
@@ -91,6 +91,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Acceso de invitados desplegado en el servidor (comprobado con el campo `hs_ip` del formulario en `/w/use-test`; contenedor arriba). Pendiente: walled garden y `login.html` en el router | (este) |
 | 2026-10-22 | Migración 0007 aplicada en Supabase (tablas `guests`, `guest_consents` y `guest_sessions` comprobadas) | `a8a2d99` |
 | 2026-10-22 | La migración 0007 se hizo repetible (`if not exists`, `drop policy if exists`) tras el error `relation "guest_consents" does not exist` al ejecutarla en Supabase: se reproduce ejecutando solo desde la línea del índice, es decir, pegando una parte del archivo. Probada desde cero y dos veces seguidas. También se corrigió `bootstrap_local.sql` para poder repetirse | `8aba073` |
 | 2026-10-22 | Acceso de invitados por correo: migración 0007, flujo `guestConnect`, página Visitantes, `login.html` del Hotspot, `session_minutes`, límite de intentos antes de consultar el router; guía del router (sección 8) | `39bc1a5` |
