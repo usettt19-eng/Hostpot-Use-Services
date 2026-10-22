@@ -2,12 +2,15 @@ import type { CSSProperties } from "react";
 import type { PortalSettings } from "@/lib/portal-settings";
 import { FONT_STACK, RADIUS_PX, readableOn } from "@/lib/portal-theme";
 import GuestForm from "./GuestForm";
+import StaffLogin from "./StaffLogin";
 
 type Hs = { mac: string; ip: string; login: string; orig: string; err?: string };
 
 type Props = {
   slug: string;
   hs?: Hs;
+  staffLoginUrl?: string; // login del Hotspot ya validado; sin él no se ofrece el acceso del personal
+  staffDst?: string;
   settings: PortalSettings;
   locale: "es" | "en";
   termsVersion: number;
@@ -23,6 +26,8 @@ const T = {
     marketing: "Quiero recibir promociones y novedades (opcional)", privacy: "Política de privacidad",
     version: "versión", simulated: "Vista simulada: el acceso real se activa al conectarse al Hotspot.",
     noTerms: "Términos pendientes de configurar.",
+    staff: "Soy del personal", staffUser: "Usuario", staffPass: "Contraseña", staffButton: "Entrar",
+    staffHelp: "¿Aún no tienes cuenta?", register: "Regístrate aquí",
     connecting: "Conectando…", previewDone: "Vista previa: en el local, aquí se te conectaría a la red.",
   },
   en: {
@@ -31,6 +36,8 @@ const T = {
     marketing: "I want to receive offers and news (optional)", privacy: "Privacy policy",
     version: "version", simulated: "Simulated view: real access is enabled when connecting through the Hotspot.",
     noTerms: "Terms not configured yet.",
+    staff: "I am staff", staffUser: "Username", staffPass: "Password", staffButton: "Sign in",
+    staffHelp: "No account yet?", register: "Register here",
     connecting: "Connecting…", previewDone: "Preview: at the venue, this would connect you to the network.",
   },
 } as const;
@@ -53,6 +60,8 @@ const CSS = `
 .pv-err{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#fee2e2;color:#7f1d1d;font-size:13px}
 .pv-ok{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#dcfce7;color:#14532d;font-size:13px}
 .pv-btn:disabled{opacity:.6;cursor:default}
+.pv-staff{margin-top:16px;font-size:13px;border-top:1px solid rgba(127,127,127,.3);padding-top:12px}
+.pv-staff a{color:var(--text);text-decoration:underline}
 .pv-foot{margin-top:16px;text-align:center;font-size:12px;opacity:.75}
 .pv-foot a{color:var(--text);text-decoration:underline}
 .pv-lang{position:absolute;top:10px;right:14px;font-size:13px}
@@ -65,7 +74,7 @@ const CSS = `
 @media(min-width:800px){.pv-split{grid-template-columns:1fr 1fr}.pv-split .pv-side{min-height:calc(100vh - 30px)}}
 `;
 
-export default function PortalView({ slug, hs = { mac: "", ip: "", login: "", orig: "" }, settings: s, locale, termsVersion, assetBase, langBase, banner }: Props) {
+export default function PortalView({ slug, staffLoginUrl, staffDst = "", hs = { mac: "", ip: "", login: "", orig: "" }, settings: s, locale, termsVersion, assetBase, langBase, banner }: Props) {
   const t = T[locale];
   const tx = s.texts[locale];
   const terms = s.terms[locale].trim() || s.terms[s.default_locale].trim();
@@ -102,6 +111,10 @@ export default function PortalView({ slug, hs = { mac: "", ip: "", login: "", or
         t={{ name: t.name, email: t.email, phone: t.phone, voucher: t.voucher, accept: t.accept, terms: t.terms,
              marketing: t.marketing, version: t.version, noTerms: t.noTerms, connecting: t.connecting, previewDone: t.previewDone }}
       />
+      {staffLoginUrl && (
+        <StaffLogin loginUrl={staffLoginUrl} dst={staffDst} slug={slug}
+          t={{ staff: t.staff, staffUser: t.staffUser, staffPass: t.staffPass, staffButton: t.staffButton, staffHelp: t.staffHelp, register: t.register }} />
+      )}
       <div className="pv-foot">
         {tx.footer && <p>{tx.footer}</p>}
         {s.privacy_url && <a href={s.privacy_url} rel="noopener noreferrer" target="_blank">{t.privacy}</a>}

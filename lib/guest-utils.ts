@@ -35,6 +35,12 @@ export function parseLoginUrl(raw: string): string | null {
   }
 }
 
+/** Redirección al login del Hotspot con usuario y contraseña (el router la procesa como inicio de sesión). */
+export function buildLoginRedirect(login: string, username: string, password: string, dst: string): string {
+  const qs = new URLSearchParams({ username, password, ...(dst ? { dst } : {}) });
+  return `${login}?${qs.toString()}`;
+}
+
 /** Destino original del visitante: solo http(s), sin credenciales y de largo razonable. Si no es válido, se descarta. */
 export function sanitizeOrig(raw: string): string {
   if (!raw || raw.length > 500) return "";

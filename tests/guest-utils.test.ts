@@ -64,3 +64,13 @@ test("CSV: escapa comillas y neutraliza fórmulas", () => {
   assert.equal(csvCell(null), '""');
   assert.equal(csvCell(5), '"5"');
 });
+
+test("la redirección al login del Hotspot lleva usuario, contraseña y destino bien codificados", async () => {
+  const { buildLoginRedirect } = await import("../lib/guest-utils.ts");
+  const u = new URL(buildLoginRedirect("http://192.168.200.1/login", "ana", "p&ss=1 2", "http://neverssl.com/?a=b"));
+  assert.equal(u.origin + u.pathname, "http://192.168.200.1/login");
+  assert.equal(u.searchParams.get("username"), "ana");
+  assert.equal(u.searchParams.get("password"), "p&ss=1 2");
+  assert.equal(u.searchParams.get("dst"), "http://neverssl.com/?a=b");
+  assert.equal(new URL(buildLoginRedirect("http://192.168.200.1/login", "a", "b", "")).searchParams.has("dst"), false);
+});

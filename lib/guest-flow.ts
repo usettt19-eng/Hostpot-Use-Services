@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { PortalSettings } from "./portal-settings.ts";
 import {
-  isIPv4, isMac, isValidEmail, normalizeEmail, normalizeMac, normalizePhone, parseLoginUrl, routerDuration, sanitizeOrig,
+  buildLoginRedirect, isIPv4, isMac, isValidEmail, normalizeEmail, normalizeMac, normalizePhone, parseLoginUrl, routerDuration, sanitizeOrig,
 } from "./guest-utils.ts";
 
 // Lógica del acceso de invitados, con las dependencias inyectadas para poder probarla sin red ni base de datos.
@@ -151,6 +151,5 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   }
 
   // Redirección de nivel superior (GET) al login del Hotspot con la credencial de un solo uso
-  const qs = new URLSearchParams({ username, password, ...(dst ? { dst } : {}) });
-  return { ok: true, redirect: `${login}?${qs.toString()}` };
+  return { ok: true, redirect: buildLoginRedirect(login, username, password, dst) };
 }

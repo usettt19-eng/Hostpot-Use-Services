@@ -94,6 +94,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | (este) |
 | 2026-10-22 | Desplegado en el servidor el código de horarios, suspensiones y equipos fijos (build correcto). Faltan las migraciones 0008 y 0009 en Supabase y las pruebas con router/alumno reales | `8ea0c0f` |
 | 2026-10-22 | Equipos fijos: migración 0009, página `/admin/fixed-devices`, excepciones por MAC en el Hotspot (`ip-binding bypassed`) y comprobación de estado contra el router. Probado con pruebas unitarias y un router falso; **pendiente** de probar en el router real (`/ip hotspot ip-binding print`) | `da89c46` |
 | 2026-10-22 | Horarios de acceso para escuelas: migración 0008 (`access_windows`), `lib/schedule.ts` (hora de Panamá), límite de sesión hasta el cierre de la ventana, pantalla en `/admin/portal` solo para escuelas. Corrección: al suspender una cuenta se deshabilita su usuario del Hotspot. Pendiente: aplicar 0008 en Supabase, probar con un alumno real y limitar dispositivos por perfil | `53d5189` |
