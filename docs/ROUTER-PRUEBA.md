@@ -83,11 +83,16 @@ Hace que el router muestre **tu** portal (`/w/{código}`) en lugar del login de 
 ```
 ⚠️ La regla por IP deja abierto el puerto 443 de esa IP, que es la del VPS: el visitante sin sesión podría abrir cualquier otro sitio que alojes ahí. Es aceptable para pruebas; para producción conviene una IP exclusiva del portal.
 
-**b) Cambiar la página de inicio de sesión del Hotspot.** Usa `deploy/mikrotik/login.html` del repositorio (cambia el dominio y el código `use-test` si hace falta).
-1. Guarda la original: `/ip hotspot print` y luego `/file print where name~"hotspot/login"`. Si la carpeta `hotspot/` no existe, ejecuta `/ip hotspot reset-html` ⚠️.
-2. Renómbrala: `/file set [find name="hotspot/login.html"] name="hotspot/login-original.html"`.
-3. En WinBox → Files, arrastra el `login.html` del repositorio dentro de la carpeta `hotspot/`.
-4. Que el perfil acepte el inicio de sesión con usuario y contraseña por URL: `/ip hotspot profile set hsprof-test login-by=http-chap,http-pap` (ya está así).
+**b) Cambiar la página de inicio de sesión del Hotspot.** El portal sirve el `login.html` ya listo para tu establecimiento en `https://connect.useservices.company/w/{código}/mikrotik-login.html` (`deploy/mikrotik/login.html` es solo una copia de referencia). El archivo es público y no contiene secretos.
+1. Mira en qué carpeta lee el Hotspot sus páginas: `/ip hotspot profile print detail where name=hsprof-test` (campo `html-directory`) y `/file print where name~"hotspot/login"`. En este router el archivo está en `flash/hotspot/login.html`.
+2. Haz una copia de la original: en WinBox → Files, arrastra `flash/hotspot/login.html` a tu PC. (El renombrado por comandos no funcionó en esta versión de RouterOS.)
+3. Descarga la nueva directamente a esa carpeta:
+```
+/tool fetch url="https://connect.useservices.company/w/use-test/mikrotik-login.html" dst-path="flash/hotspot/login.html" check-certificate=no
+/file print where name~"hotspot/login"
+```
+`check-certificate=no` porque el router no trae las autoridades de Let's Encrypt y el archivo no es secreto. El segundo comando debe mostrar el archivo con un tamaño pequeño (menos de 1 KB, no los 4423 bytes de la original).
+4. Si el perfil usa `html-directory=hotspot` pero los archivos están en `flash/hotspot`, pega la salida antes de seguir.
 
 **c) Probar**
 1. Conecta un dispositivo a `ether3`, abre `http://neverssl.com`: debe llevarte a `https://connect.useservices.company/w/use-test?...` con tu diseño. ⚠️ Si ves el texto `$(mac-esc)` sin sustituir en la URL, esa variable no existe en tu versión: pega la URL.
@@ -97,11 +102,10 @@ Hace que el router muestre **tu** portal (`/w/{código}`) en lugar del login de 
 
 **d) Deshacer**
 ```
-/file remove [find name="hotspot/login.html"]
-/file set [find name="hotspot/login-original.html"] name="hotspot/login.html"
-/ip hotspot walled-garden remove [find comment="portal"]
-/ip hotspot walled-garden ip remove [find comment="portal"]
+/ip hotspot walled-garden remove [find comment~"portal"]
+/ip hotspot walled-garden ip remove [find comment~"portal"]
 ```
+Para volver a la página de login de MikroTik: sube de nuevo la copia que guardaste en tu PC (paso b.2) a `flash/hotspot/login.html`, o ejecuta `/ip hotspot reset-html` ⚠️ (regenera las páginas por defecto; no lo he probado en este router).
 
 ## Varias sesiones con un mismo usuario (pruebas)
 El límite de un dispositivo por usuario viene del perfil: `/ip hotspot user profile set Clientes shared-users=5`. Afecta a todos los usuarios con ese perfil. Los usuarios creados solo en el router (`/ip hotspot user add ...`) no aparecen en el portal.
