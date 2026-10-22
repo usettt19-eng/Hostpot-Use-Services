@@ -186,10 +186,15 @@ export async function listGuestUsers(c: RouterConfig): Promise<GuestUserInfo[]> 
     }));
 }
 
-/** Nombres de usuario con sesión abierta ahora mismo. */
-export async function listActiveUsers(c: RouterConfig): Promise<Set<string>> {
+/**
+ * Sesiones abiertas ahora mismo, por nombre de usuario, con los contadores de la sesión en curso.
+ * Los contadores del usuario (/ip/hotspot/user) solo se actualizan cuando la sesión termina.
+ */
+export async function listActiveSessions(c: RouterConfig): Promise<Map<string, { bytesIn: number; bytesOut: number }>> {
   const rows = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/active");
-  return new Set(rows.map((r) => r.user).filter(Boolean));
+  return new Map(
+    rows.filter((r) => r.user).map((r) => [r.user, { bytesIn: Number(r["bytes-in"] ?? 0), bytesOut: Number(r["bytes-out"] ?? 0) }])
+  );
 }
 
 export const formatBytes = (n: number) => {

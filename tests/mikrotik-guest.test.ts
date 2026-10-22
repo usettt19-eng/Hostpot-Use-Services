@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  createGuestUser, deleteHotspotUser, findHostByAddress, listActiveUsers, listGuestUsers, type RouterConfig,
+  createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
 // Router falso por HTTPS con certificado autofirmado: comprueba el uso de la API REST (no es un router real)
@@ -28,7 +28,7 @@ before(async () => {
       if (u.pathname === "/rest/ip/hotspot/host") {
         return res.end(JSON.stringify([{ ".id": "*1", address: "192.168.200.198", "mac-address": "aa:bb:cc:dd:ee:ff", authorized: "false", bypassed: "false", server: "hotspot-test" }]));
       }
-      if (u.pathname === "/rest/ip/hotspot/active") return res.end(JSON.stringify([{ user: "g_abc" }, { user: "srubend" }]));
+      if (u.pathname === "/rest/ip/hotspot/active") return res.end(JSON.stringify([{ user: "g_abc", "bytes-in": "111", "bytes-out": "222" }, { user: "srubend" }]));
       if (u.pathname === "/rest/ip/hotspot/user" && req.method === "GET") {
         const name = u.searchParams.get("name");
         const all = [
@@ -66,8 +66,11 @@ test("listGuestUsers solo devuelve los temporales y convierte los contadores", a
   assert.deepEqual(await listGuestUsers(cfg), [{ name: "g_abc", bytesIn: 1000, bytesOut: 2000, uptime: "5m" }]);
 });
 
-test("listActiveUsers devuelve los nombres con sesión", async () => {
-  assert.deepEqual([...(await listActiveUsers(cfg))].sort(), ["g_abc", "srubend"]);
+test("listActiveSessions devuelve los contadores de la sesión en curso", async () => {
+  const m = await listActiveSessions(cfg);
+  assert.deepEqual([...m.keys()].sort(), ["g_abc", "srubend"]);
+  assert.deepEqual(m.get("g_abc"), { bytesIn: 111, bytesOut: 222 });
+  assert.deepEqual(m.get("srubend"), { bytesIn: 0, bytesOut: 0 });
 });
 
 test("deleteHotspotUser borra por identificador", async () => {

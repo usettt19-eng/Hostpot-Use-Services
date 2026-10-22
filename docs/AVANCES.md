@@ -51,6 +51,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 3. Medir velocidad con un dispositivo real (esperado: 5 Mbps bajada, 2 de subida con el perfil Clientes). Si salen invertidas, cambiar el orden en `lib/mikrotik.ts`.
 4. **Seguridad del router:** cambiar la contraseña del usuario `portal` (la de prueba se escribió en un chat) y deshabilitar `telnet`, `ftp`, `www`, `api`.
 5. **Seguridad del servidor:** los puertos de Postgres/pooler (5432, 5433, 6543, 6544) están abiertos a internet y `ufw` está inactivo. Es de otras apps, pero es el riesgo mayor. Docker salta `ufw`: hay que publicarlos en `127.0.0.1`.
+5a. **Verificar qué es `bytes-in` y `bytes-out` en RouterOS.** Por la documentación de MikroTik, `bytes-in` son los bytes que el router **recibe del cliente** (su subida) y `bytes-out` los que **le envía** (su descarga). El portal los etiqueta al revés (`bytesIn` como «Descarga») en **Consumo** y **Visitantes**, convención heredada del código original. Comprobar con una descarga grande en un dispositivo (`/ip hotspot active print stats`: si `bytes-out` crece mucho más que `bytes-in`, las etiquetas están invertidas) y corregir.
 5b. **OTP por correo** (proveedor de correo), proceso en segundo plano para las sesiones, sedes y varios routers, panel con gráficas.
 6. Guardar `usage_stats` con una tarea programada (hoy el consumo no tiene historial).
 7. Tests de RLS del resto de tablas (hoy solo están las del portal).
@@ -91,6 +92,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Sincronización de invitados: los contadores de una sesión en curso se leen de `/ip/hotspot/active` (los del usuario solo se actualizan al terminar la sesión, `UPTIME 0s` en `/ip hotspot user`). Con dos invitados activos se comprobó: cada uno con su comentario `guest:<id>`, `session-time-left` ≈ 2 h y una cola dinámica de `2048k/5120k` | (este) |
 | 2026-10-22 | `login.html` descargado en `flash/hotspot` (674 bytes) y flujo de invitados probado con un dispositivo real: el router redirige al portal, el invitado entra y llega a la web original (neverssl envía a un subdominio aleatorio, es normal) | `3d97747` |
 | 2026-10-22 | Walled garden creado y verificado en el router de prueba (`connect.useservices.company` y `187.33.153.78:443`) | `c1cf74d` |
 | 2026-10-22 | El portal sirve el `login.html` del Hotspot por establecimiento (`/w/{código}/mikrotik-login.html`) para descargarlo desde el router con `/tool fetch`: el renombrado por comandos falló (`expected end of command`) y los archivos están en `flash/hotspot/`. Pendiente de desplegar y probar | `aeba69c` |
