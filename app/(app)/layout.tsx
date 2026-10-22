@@ -26,6 +26,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <Link href="/admin/usage">Consumo</Link>
             <Link href="/admin/portal">Portal</Link>
             <Link href="/admin/guests">Visitantes</Link>
+            <Link href="/admin/stats">Estadísticas</Link>
             <Link href="/admin/fixed-devices">Equipos fijos</Link>
           </>
         )}

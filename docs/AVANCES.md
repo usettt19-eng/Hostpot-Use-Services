@@ -40,11 +40,13 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Consumo | Lee `/ip/hotspot/user`. Sin historial guardado todavía | Carga sin error |
 | Portal personalizable | Editor `/admin/portal`, vista previa, publicación, historial, logo y fondo; portal público `/w/{código}` (simulado) | Pruebas unitarias, RLS en Postgres local y portal público contra un Supabase simulado. **El editor y la subida de imágenes no se han probado con sesión real** |
 | Acceso de invitados por correo | Redirección del Hotspot al portal, formulario con consentimientos, comprobación del dispositivo en el router, usuario temporal y redirección al login; página **Visitantes** (estadísticas, borrado, CSV) | 40 pruebas, RLS de las tablas nuevas en Postgres local y flujo completo con navegador contra un Supabase y un router **simulados**. **Probado con un dispositivo real en el router de prueba (2026-10-22): `neverssl.com` → portal → formulario → login del Hotspot → web original. Falta confirmar en iOS/Android, la página Visitantes y el consumo de las sesiones de invitados**; el correo no se verifica (sin OTP) |
+| Estadísticas de visitantes | `/admin/stats`: visitantes hoy/7/30 días con cambio vs el periodo anterior, gráfico por día (7 y 30 días), semana (90 días) o mes (12 meses), nuevos vs recurrentes, duración media, conexiones por hora y por día de la semana, tabla. Lee con RLS; sin migración nueva | Probado con datos de prueba y capturas claro/oscuro; sin probar con datos reales |
 | Seguridad | Credenciales del router cifradas, RLS, escritura solo por service role en tablas sensibles, CSP en `/w/*` | Ver `CLAUDE.md` |
 | Despliegue | Docker, nginx y HTTPS | En producción de pruebas |
-| Pruebas | `npm test` (8), `supabase/tests/portal_rls.sql` | Pasan |
+| Pruebas | `npm test` (81), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
+000. **Teléfonos:** tras entrar como visitante, el móvil no llega a la página «Después de conectar»: el asistente de portal cautivo del teléfono se cierra solo al detectar internet. Pendiente: probar en iOS/Android y decidir (página de éxito propia o aceptar el comportamiento).
 00. La migración 0009 está aplicada; confirmar que la 0008 (`access_windows`) también lo está. Probar equipos fijos en el router real. Probar horarios con un alumno y probar horarios con un alumno en la red de pruebas. Corregir límite de dispositivos (personal 2–3) por perfil de rol. Separar equipos fijos (impresoras, pantallas) con excepción por MAC o red propia.
 0. El acceso de invitados funciona en el router de prueba. Falta: comprobar **Visitantes** y las sesiones `g_…`, probar iOS y Android, y validar los puntos ⚠️ restantes de `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
 1. Probar el editor en el portal desplegado: escribir términos, guardar, publicar y subir un logo (el servidor ya tiene el código de `f9eb619`).
@@ -97,6 +99,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Panel `/admin/stats` de estadísticas de visitantes (resumen diario, semanal, mensual) y enlace «Estadísticas» | (este) |
 | 2026-10-22 | Botón «Guardar y publicar» en el editor del portal: el usuario escribió los términos pero publicaba el borrador guardado (sin términos) y no podía publicar | `437ce8e` |
 | 2026-10-22 | «Después de conectar, ir a» también se aplica al personal que entra por «Soy del personal» | `eefaf21` |
 | 2026-10-22 | Crear usuario desde **Usuarios** (`createUser`, `lib/create-user.ts`) con nombres de usuario únicos (`lib/usernames.ts`, también al aprobar). 74 pruebas, con los caminos de fallo y su deshacer. **Pendiente** de probar con Supabase Auth y el router reales | `b503357` |

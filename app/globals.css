@@ -26,3 +26,25 @@ button.danger { background:var(--bad); }
 .err { color:var(--bad); } .okmsg { color:var(--ok); } .muted { color:var(--muted); }
 .bar { height:8px; background:var(--line); border-radius:99px; overflow:hidden; } .bar > i { display:block; height:100%; background:var(--brand); }
 .inline { display:inline-flex; gap:6px; align-items:center; } .inline input { width:90px; }
+/* Estadísticas: serie 1 azul y serie 2 naranja (paleta validada en claro y oscuro) */
+:root { --s1:#2a78d6; --s2:#eb6834; --grid:#e4e7ec; }
+@media (prefers-color-scheme: dark) { :root { --s1:#3987e5; --s2:#d95926; --grid:#2a303b; } }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
+.kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+.kpi .v { font-size:30px; font-weight:600; line-height:1.1; margin:4px 0; }
+.kpi .l, .kpi .d { font-size:12px; color:var(--muted); }
+.kpi .up { color:var(--ok); } .kpi .down { color:var(--bad); }
+.chart { width:100%; height:auto; display:block; }
+.chart text { fill:var(--muted); font-size:11px; font-family:inherit; }
+.chart .grid { stroke:var(--grid); stroke-width:1; }
+.chart .m1 { fill:var(--s1); } .chart .m2 { fill:var(--s2); }
+.chart g.hit:hover rect.m1, .chart g.hit:hover rect.m2 { opacity:.78; }
+.chart g.hit:hover rect.back { fill:var(--grid); opacity:.5; }
+.chart rect.back { fill:transparent; }
+.legend { display:flex; gap:16px; font-size:13px; color:var(--muted); margin:4px 0 8px; }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+.ranges a { padding:5px 12px; border:1px solid var(--line); border-radius:99px; font-size:13px; }
+.ranges a.on { background:var(--brand); color:#fff; border-color:var(--brand); }
+.split { height:12px; display:flex; gap:2px; border-radius:6px; overflow:hidden; margin:8px 0; }
+.split i { display:block; height:100%; }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
