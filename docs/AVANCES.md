@@ -91,7 +91,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-22 | Acceso de invitados por correo: migración 0007, flujo `guestConnect`, página Visitantes, `login.html` del Hotspot, `session_minutes`, límite de intentos antes de consultar el router; guía del router (sección 8) | (este) |
+| 2026-10-22 | Acceso de invitados por correo: migración 0007, flujo `guestConnect`, página Visitantes, `login.html` del Hotspot, `session_minutes`, límite de intentos antes de consultar el router; guía del router (sección 8) | `39bc1a5` |
 | 2026-10-22 | Cola dinámica de `srubend` comprobada: `max-limit=2048k/5120k` sobre `192.168.200.198`; el orden del límite coincide con lo esperado (falta la medición real) | `90d9707` |
 | 2026-10-22 | El usuario pidió varias sesiones en paralelo: `shared-users=5` en el perfil `Clientes` o usuarios de prueba (documentado) | — |
 | 2026-10-22 | Hotspot de prueba configurado y probado: redirección al login y sesión de `srubend` activa (192.168.200.198). Se ve el login estándar de MikroTik: el portal personalizado aún no está conectado al Hotspot | `81976c3` |
