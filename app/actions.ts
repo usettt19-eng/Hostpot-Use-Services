@@ -1,5 +1,6 @@
 "use server";
 
+import { isTenantSuspended } from "@/lib/tenant-status";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient, getRouterConfig } from "@/lib/supabase";
@@ -118,6 +119,7 @@ async function requireAdmin() {
   const { data: me } = await supabase
     .from("profiles").select("id, tenant_id, role, status").eq("id", auth.user.id).single();
   if (!me || me.status !== "active" || !isAdminRole(me.role)) redirect("/dashboard");
+  if (await isTenantSuspended(me.tenant_id)) redirect("/dashboard");
   const tenant = await getRouterConfig(me.tenant_id);
   const { data: est } = await supabase.from("tenants").select("type").eq("id", me.tenant_id).single();
   return { supabase, me, tenant, roles: rolesFor(est?.type ?? "school") };

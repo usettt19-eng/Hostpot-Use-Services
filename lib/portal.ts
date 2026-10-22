@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase";
 import { isAdminRole } from "@/lib/roles";
+import { isTenantSuspended } from "@/lib/tenant-status";
 import {
   ASSET_NAME_RE, IMAGE_MIME, defaultSettings, parseSettings, type PortalSettings,
 } from "@/lib/portal-settings";
@@ -25,6 +26,7 @@ export async function requireAdminTenant() {
   const { data: me } = await supabase
     .from("profiles").select("tenant_id, role, status").eq("id", auth.user.id).single();
   if (!me || me.status !== "active" || !isAdminRole(me.role)) redirect("/dashboard");
+  if (await isTenantSuspended(me.tenant_id)) redirect("/dashboard");
   const { data: t } = await supabase.from("tenants").select("name, slug, type").eq("id", me.tenant_id).single();
   return {
     userId: auth.user.id,

@@ -234,3 +234,34 @@ export const formatBytes = (n: number) => {
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
   return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
 };
+
+/** Deshabilita todos los usuarios del Hotspot y expulsa las sesiones abiertas (suspensión del establecimiento). */
+export async function cutAllAccess(c: RouterConfig): Promise<{ users: number; sessions: number }> {
+  if (!isConfigured(c)) return { users: 0, sessions: 0 };
+  const users = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/user");
+  let u = 0;
+  for (const x of users) {
+    if (x["name"] && x["name"] !== "default-trial") {
+      await rest(c, "PATCH", `/ip/hotspot/user/${x[".id"]}`, { disabled: "true" });
+      u++;
+    }
+  }
+  const active = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/active");
+  for (const a of active) await rest(c, "DELETE", `/ip/hotspot/active/${a[".id"]}`);
+  return { users: u, sessions: active.length };
+}
+
+/** Vuelve a habilitar los usuarios indicados (los de cuentas activas) al reactivar un establecimiento. */
+export async function enableUsers(c: RouterConfig, usernames: string[]): Promise<number> {
+  if (!isConfigured(c)) return 0;
+  const wanted = new Set(usernames.map((n) => n.toLowerCase()));
+  const users = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/user");
+  let n = 0;
+  for (const x of users) {
+    if (wanted.has((x["name"] ?? "").toLowerCase()) && x["disabled"] === "true") {
+      await rest(c, "PATCH", `/ip/hotspot/user/${x[".id"]}`, { disabled: "false" });
+      n++;
+    }
+  }
+  return n;
+}

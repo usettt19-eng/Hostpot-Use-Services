@@ -61,6 +61,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - **El correo no está verificado:** cualquiera puede escribir un correo ajeno. No usar esos datos para nada sensible hasta añadir el OTP.
 - `/admin/guests` (Visitantes): estadísticas, lista, borrado (derecho de supresión, en cascada) y CSV (`/admin/guests/export`, con protección contra fórmulas). Al abrirla se sincronizan las sesiones con el router (`lib/guest-sync.ts`) y se borran los usuarios temporales terminados; no hay proceso en segundo plano todavía.
 - `/admin/stats` (Estadísticas): visitantes y conexiones por día, semana o mes (7, 30, 90 días y 12 meses), nuevos vs recurrentes, duración media y horas/días de más movimiento. Cálculo puro en `lib/stats.ts` (hora de Panamá), gráficos SVG en `components/stats/charts.tsx`. Una conexión cuenta si su sesión llegó a `active` o `ended`.
+- **Panel de plataforma** (`/platform`, `app/(app)/platform`): solo para los correos de `PLATFORM_ADMIN_EMAILS` (`lib/platform.ts`, `lib/platform-auth.ts`; sin la variable nadie entra). Lista todos los establecimientos con el service role y permite suspender/reactivar (`setTenantSuspended`). El estado vive en `tenant_suspensions` (sin políticas: ni los admins del establecimiento lo leen ni lo cambian). Suspendido: `cutAllAccess` deshabilita usuarios y expulsa sesiones del router (mejor esfuerzo), el layout bloquea su panel, `requireAdminTenant`/`requireAdmin` redirigen y `guestConnect` rechaza. `supabase/tests/platform_rls.sql` lo prueba.
 - **Proceso periódico:** `GET /api/cron/guests-sync` (cron del servidor cada minuto, `Authorization: Bearer $CRON_SECRET`) llama a `syncAllGuestSessions`: cierra sesiones terminadas y borra usuarios temporales del router. Sin secreto (32+ caracteres) responde 401. La ruta queda fuera de la sesión en `middleware.ts`.
 - Los datos personales se cifran con AES-GCM y se buscan con `blindIndex` (`lib/crypto.ts`), derivado de `ROUTER_CRED_KEY`: **esa clave ahora también protege los datos de invitados**.
 - **Acceso del personal en el portal del invitado:** sección «Soy del personal» (`components/portal/StaffLogin.tsx`) con usuario y contraseña del Hotspot; el navegador va directo al login del router (`buildLoginRedirect`). Solo se ofrece si la URL de login del Hotspot es válida (`parseLoginUrl`), y trae un enlace a `/register?school={código}`; al entrar va a la URL «Después de conectar» del portal publicado, si la hay, y si no a la web original (el registro precarga el código). Sin esto, el personal no podría entrar desde que `login.html` redirige al portal.
@@ -70,7 +71,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
-- `npm test` (81 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `npm test` (84 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
 - `supabase/tests/base_rls.sql`: aislamiento de las tablas originales (establecimientos, perfiles, planes, usuarios del Hotspot, consumo y credenciales del router), con pendientes y suspendidos sin datos, y escrituras prohibidas al cliente.
 - `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 
@@ -104,7 +105,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql` y `0009_fixed_devices.sql` (cada uno por separado, en orden).
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql`, `0009_fixed_devices.sql` y `0010_tenant_suspensions.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Abrir `/register-school` para crear el establecimiento y su administrador.

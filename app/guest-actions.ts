@@ -12,6 +12,7 @@ import { DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 import { pickLocale } from "@/lib/portal-settings";
 import { minutesOpenLeft, nextOpeningText, type Window } from "@/lib/schedule";
 import { allow } from "@/lib/rate-limit";
+import { isTenantSuspended } from "@/lib/tenant-status";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean } | null;
 
@@ -74,6 +75,8 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
   if (!allow(`ip:${clientIp}`, 30, 60_000) || !allow(`tenant:${tenant.id}`, 120, 60_000)) {
     return { error: "Demasiados intentos. Espera un minuto y vuelve a intentarlo" };
   }
+
+  if (await isTenantSuspended(tenant.id)) return { error: "El servicio WiFi de este local no está disponible por ahora" };
 
   const { settings, termsVersion } = await getPublishedPortal(tenant.id, tenant.name);
   const locale = pickLocale(s(fd, "locale", 2), null, settings.default_locale);
