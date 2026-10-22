@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import {
-  saveDraft, publishDraft, discardDraft, restoreVersion, uploadPortalAsset, removePortalAsset,
+  saveDraft, saveAndPublish, publishDraft, discardDraft, restoreVersion, uploadPortalAsset, removePortalAsset,
   type PortalState,
 } from "@/app/portal-actions";
 import type { PortalSettings } from "@/lib/portal-settings";
@@ -50,6 +50,7 @@ export function PreviewFrame({ version }: { version: string }) {
 
 export function EditorForm({ s }: { s: PortalSettings }) {
   const [state, action, pending] = useActionState(saveDraft, null);
+  const [pubState, pubAction, pubPending] = useActionState(saveAndPublish, null);
   const [colors, setColors] = useState(s.colors);
   const ratio = contrastRatio(colors.text, colors.background);
   const setC = (k: keyof typeof colors) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -122,8 +123,15 @@ export function EditorForm({ s }: { s: PortalSettings }) {
       </div>
       <p className="muted">Si cambias los términos y publicas, la versión de términos sube y los visitantes deberán aceptarlos de nuevo.</p>
 
-      <p><button disabled={pending}>{pending ? "Guardando…" : "Guardar borrador"}</button></p>
+      <div className="row">
+        <button disabled={pending || pubPending}>{pending ? "Guardando…" : "Guardar borrador"}</button>
+        <button type="submit" formAction={pubAction} disabled={pending || pubPending}>
+          {pubPending ? "Publicando…" : "Guardar y publicar"}
+        </button>
+      </div>
+      <p className="muted">«Guardar y publicar» guarda lo que ves en el formulario y lo publica de una vez.</p>
       <Msg s={state} />
+      <Msg s={pubState} />
     </form>
   );
 }
@@ -167,6 +175,7 @@ export function PublishPanel({ hasDraft, published }: { hasDraft: boolean; publi
   return (
     <div className="card">
       <h2>Publicación</h2>
+      <p className="muted">Este botón publica lo que ya está <b>guardado</b>; si acabas de escribir cambios en el formulario, usa «Guardar y publicar» más abajo. </p>
       <p className="muted">
         {published ? `Versión publicada: ${published}.` : "Todavía no hay versión publicada: los visitantes ven valores por defecto."}{" "}
         {hasDraft ? "Hay un borrador guardado." : "No hay borrador."}

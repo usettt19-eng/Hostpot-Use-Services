@@ -78,6 +78,33 @@ export async function saveDraft(_: PortalState, fd: FormData): Promise<PortalSta
   return { ok: "Borrador guardado", warnings: publishProblems(parsed.data) };
 }
 
+/** Guarda lo que hay en el formulario y lo publica en un solo paso (si algo impide publicar, no cambia nada). */
+export async function saveAndPublish(_: PortalState, fd: FormData): Promise<PortalState> {
+  const ctx = await requireAdminTenant();
+  const base = await baseSettings(ctx.tenantId, ctx.tenantName);
+  const parsed = parseSettings(settingsFromForm(fd, base));
+  if (!parsed.ok) return { error: parsed.errors.join(" · ") };
+  const problems = publishProblems(parsed.data);
+  if (problems.length) return { error: `No se publicó: ${problems.join(" · ")}` };
+
+  const saveError = await writeDraft(ctx.tenantId, ctx.userId, parsed.data);
+  if (saveError) {
+    console.error("saveAndPublish save:", saveError.message);
+    return { error: "No se pudo guardar el borrador" };
+  }
+  const { draft } = await getPortalState(ctx.tenantId, ctx.tenantName);
+  if (!draft) return { error: "No se pudo publicar" };
+  const { error } = await createAdminClient().rpc("publish_portal_version", {
+    p_tenant: ctx.tenantId, p_version: draft.version,
+  });
+  if (error) {
+    console.error("saveAndPublish publish:", error.message);
+    return { error: "Se guardó el borrador, pero no se pudo publicar" };
+  }
+  revalidatePath("/admin/portal");
+  return { ok: `Versión ${draft.version} publicada` };
+}
+
 export async function publishDraft(): Promise<PortalState> {
   const ctx = await requireAdminTenant();
   const { draft } = await getPortalState(ctx.tenantId, ctx.tenantName);
