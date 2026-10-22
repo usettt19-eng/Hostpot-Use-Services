@@ -33,6 +33,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <Link href="/admin/guests">Visitantes</Link>
             <Link href="/admin/stats">Estadísticas</Link>
             <Link href="/admin/fixed-devices">Equipos fijos</Link>
+            <Link href="/admin/router-setup">Router</Link>
           </>
         )}
         <span className="muted">{me?.full_name} · {me ? ROLE_LABEL[me.role] : ""}</span>
