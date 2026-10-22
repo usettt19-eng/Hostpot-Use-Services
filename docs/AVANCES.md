@@ -91,7 +91,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-22 | `login.html` descargado en `flash/hotspot` (674 bytes) y flujo de invitados probado con un dispositivo real: el router redirige al portal, el invitado entra y llega a la web original (neverssl envía a un subdominio aleatorio, es normal) | (este) |
+| 2026-10-22 | `login.html` descargado en `flash/hotspot` (674 bytes) y flujo de invitados probado con un dispositivo real: el router redirige al portal, el invitado entra y llega a la web original (neverssl envía a un subdominio aleatorio, es normal) | `3d97747` |
 | 2026-10-22 | Walled garden creado y verificado en el router de prueba (`connect.useservices.company` y `187.33.153.78:443`) | `c1cf74d` |
 | 2026-10-22 | El portal sirve el `login.html` del Hotspot por establecimiento (`/w/{código}/mikrotik-login.html`) para descargarlo desde el router con `/tool fetch`: el renombrado por comandos falló (`expected end of command`) y los archivos están en `flash/hotspot/`. Pendiente de desplegar y probar | `aeba69c` |
 | 2026-10-22 | Acceso de invitados desplegado en el servidor (comprobado con el campo `hs_ip` del formulario en `/w/use-test`; contenedor arriba). El walled garden y el `login.html` ya están en el router de prueba | `a7925f6` |
