@@ -49,7 +49,6 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Pruebas | `npm test` (99), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
-0000. **Seguridad (SSRF):** los administradores de cada establecimiento todavía pueden cambiar la URL del router en **Ancho de banda** (`saveRouter`); uno malicioso podría apuntar el portal a una dirección interna del servidor y leer parte del error. Ahora que el dueño configura los routers, quitar ese formulario a los administradores (o validar la URL con `lib/router-config.ts`).
 000. **Teléfonos:** tras entrar como visitante, el móvil no llega a la página «Después de conectar»: el asistente de portal cautivo del teléfono se cierra solo al detectar internet. Pendiente: probar en iOS/Android y decidir (página de éxito propia o aceptar el comportamiento).
 00. **Aplicar la 0010 (`tenant_suspensions`) y poner `PLATFORM_ADMIN_EMAILS` en el `.env` del servidor** antes de usar `/platform`. Las migraciones 0008 y 0009 están aplicadas (la tabla `access_windows` ya existía al repetir la 0008). Probar equipos fijos en el router real. Probar horarios con un alumno y probar horarios con un alumno en la red de pruebas. Corregir límite de dispositivos (personal 2–3) por perfil de rol. Separar equipos fijos (impresoras, pantallas) con excepción por MAC o red propia.
 0. El acceso de invitados funciona en el router de prueba. Falta: comprobar **Visitantes** y las sesiones `g_…`, probar iOS y Android, y validar los puntos ⚠️ restantes de `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
@@ -110,6 +109,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
+| 2026-10-22 | Se quita a los administradores el formulario de conexión al router (cierra el riesgo de SSRF); `saveRouter` eliminado y la pantalla Ancho de banda solo muestra el estado | (este) |
 | 2026-10-22 | El dueño guarda y prueba la conexión del router de cada establecimiento desde `/platform/router/{id}` | `f905f12` |
 | 2026-10-22 | El generador del router pasa al panel `/platform` (por establecimiento, solo el dueño); sale del menú de los administradores | `72888d6` |
 | 2026-10-22 | Generador de configuración del router (bloques y archivo `.rsc`) | `fca96a5` |

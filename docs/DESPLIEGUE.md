@@ -68,5 +68,5 @@ curl -sSk -m 8 -u 'portal:CLAVE' https://10.99.0.2/rest/system/identity
 openssl s_client -connect 10.99.0.2:443 </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256
 ```
 
-**En el portal** → Ancho de banda → Conexión al MikroTik: URL `https://10.99.0.2`, usuario `portal`, la huella SHA-256 y la contraseña.
+**En el portal** → `/platform` → Configurar router → Conexión del portal con el router: URL `https://10.99.0.2`, usuario `portal`, la huella SHA-256 y la contraseña.
 Si cambias o renuevas el certificado del router, actualiza la huella.

@@ -51,5 +51,5 @@ Un `401` de Supabase y un `401` del router son respuestas buenas: significan que
 1. Agregar al repo: `Dockerfile` (Next.js `output: "standalone"`), `docker-compose.yml` con `127.0.0.1:8120:3000` y `.env.production` de ejemplo. Las `NEXT_PUBLIC_*` se incrustan al compilar, por lo que van como `build args`.
 2. Crear un server block de nginx para el subdominio con proxy a `127.0.0.1:8120`, y certificado con `certbot`.
 3. Variables de entorno en el servidor: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` y `ROUTER_CRED_KEY` (`openssl rand -base64 32`). No van al repositorio.
-4. Configurar el acceso al MikroTik y probar en **Ancho de banda → Conexión al MikroTik**.
+4. Configurar el acceso al MikroTik y probar en `/platform` → Configurar router → Conexión del portal con el router.
 5. Opcional: monitor en Uptime Kuma (ya está instalado en el puerto 3010).

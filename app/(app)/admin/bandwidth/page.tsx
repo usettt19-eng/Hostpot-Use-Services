@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, getRouterConfig } from "@/lib/supabase";
-import { saveBandwidth, saveRouter } from "@/app/actions";
+import { saveBandwidth } from "@/app/actions";
+import { isConfigured } from "@/lib/mikrotik";
 import { ROLE_LABEL, isAdminRole } from "@/lib/roles";
 
 export default async function BandwidthPage() {
@@ -41,19 +42,11 @@ export default async function BandwidthPage() {
       </div>
 
       <div className="card">
-        <h2>Conexión al MikroTik (RouterOS v7, REST)</h2>
-        <p className="muted">Sin datos de conexión el portal funciona en modo simulado. Habilita el servicio <code>www-ssl</code> en el router y crea un usuario de API con permisos limitados.</p>
-        <form action={saveRouter}>
-          <label>URL del router (ej. https://192.168.88.1)</label>
-          <input name="router_url" autoComplete="off" defaultValue={tenant.router_url ?? ""} />
-          <label>Usuario</label>
-          <input name="router_user" autoComplete="off" defaultValue={tenant.router_user ?? ""} />
-          <label>Huella SHA-256 del certificado (opcional; necesaria si es autofirmado)</label>
-          <input name="router_cert_fingerprint" defaultValue={tenant.router_cert_fingerprint ?? ""} placeholder="AA:BB:CC:…" autoComplete="off" />
-          <label>Contraseña (déjala vacía para no cambiarla)</label>
-          <input name="router_password" type="password" autoComplete="new-password" />
-          <p><button>Guardar conexión</button></p>
-        </form>
+        <h2>Conexión al router</h2>
+        {isConfigured(tenant)
+          ? <p>Conectado a <code>{tenant.router_url}</code> con el usuario <code>{tenant.router_user}</code>.</p>
+          : <p>El router de este establecimiento todavía no está configurado: el portal funciona en modo simulado.</p>}
+        <p className="muted">La conexión con el router la configura el administrador de la plataforma. Si necesitas cambiarla, contáctalo.</p>
       </div>
     </>
   );

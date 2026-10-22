@@ -4,7 +4,6 @@ import { isTenantSuspended } from "@/lib/tenant-status";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient, getRouterConfig } from "@/lib/supabase";
-import { encryptSecret } from "@/lib/crypto";
 import { uniqueUsername } from "@/lib/usernames";
 import { createUserAccount } from "@/lib/create-user";
 import {
@@ -12,7 +11,6 @@ import {
   deleteHotspotUser,
   setHotspotUserDisabled,
   syncBandwidthProfile,
-  normalizeFingerprint,
   isConfigured,
   listHotspotUserNames,
 } from "@/lib/mikrotik";
@@ -211,30 +209,6 @@ export async function saveBandwidth(fd: FormData) {
     .update({ download_kbps: download, upload_kbps: upload })
     .eq("id", id).eq("tenant_id", me.tenant_id).select("name").single();
   if (bw) await syncBandwidthProfile(tenant, bw.name, download, upload).catch(console.error);
-  revalidatePath("/admin/bandwidth");
-}
-
-export async function saveRouter(fd: FormData) {
-  const { me } = await requireAdmin();
-  const pass = String(fd.get("router_password") ?? "");
-  const fingerprint = normalizeFingerprint(String(fd.get("router_cert_fingerprint") ?? ""));
-  if (fingerprint && fingerprint.length !== 64) {
-    throw new Error("La huella SHA-256 debe tener 64 caracteres hexadecimales (32 pares)");
-  }
-  const patch: Record<string, string | null> = {
-    tenant_id: me.tenant_id,
-    router_url: String(fd.get("router_url") || "") || null,
-    router_user: String(fd.get("router_user") || "") || null,
-    router_cert_fingerprint: fingerprint || null,
-    updated_at: new Date().toISOString(),
-  };
-  if (pass) patch.router_password_enc = encryptSecret(pass);
-  const { error } = await createAdminClient()
-    .from("tenant_router_credentials").upsert(patch, { onConflict: "tenant_id" });
-  if (error) {
-    console.error("saveRouter:", error.message);
-    throw new Error("No se pudo guardar la conexión del router");
-  }
   revalidatePath("/admin/bandwidth");
 }
 

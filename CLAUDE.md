@@ -110,4 +110,4 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Entrar a `/platform` (correo en `PLATFORM_ADMIN_EMAILS`) y crear el establecimiento y su administrador. (Para el primer arranque sin panel, `ALLOW_PUBLIC_SCHOOL_REGISTRATION=1` abre `/register-school`.)
-5. En **Ancho de banda → Conexión al MikroTik** ingresar URL, usuario y contraseña.
+5. En `/platform/router/{id}` → «Conexión del portal con el router» guardar URL, usuario, contraseña y huella (los administradores del establecimiento ya no pueden cambiarlas; **Ancho de banda** solo muestra el estado).
