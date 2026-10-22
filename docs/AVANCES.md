@@ -91,7 +91,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-22 | Migración 0007 aplicada en Supabase (tablas `guests`, `guest_consents` y `guest_sessions` comprobadas) | (este) |
+| 2026-10-22 | Migración 0007 aplicada en Supabase (tablas `guests`, `guest_consents` y `guest_sessions` comprobadas) | `a8a2d99` |
 | 2026-10-22 | La migración 0007 se hizo repetible (`if not exists`, `drop policy if exists`) tras el error `relation "guest_consents" does not exist` al ejecutarla en Supabase: se reproduce ejecutando solo desde la línea del índice, es decir, pegando una parte del archivo. Probada desde cero y dos veces seguidas. También se corrigió `bootstrap_local.sql` para poder repetirse | `8aba073` |
 | 2026-10-22 | Acceso de invitados por correo: migración 0007, flujo `guestConnect`, página Visitantes, `login.html` del Hotspot, `session_minutes`, límite de intentos antes de consultar el router; guía del router (sección 8) | `39bc1a5` |
 | 2026-10-22 | Cola dinámica de `srubend` comprobada: `max-limit=2048k/5120k` sobre `192.168.200.198`; el orden del límite coincide con lo esperado (falta la medición real) | `90d9707` |
