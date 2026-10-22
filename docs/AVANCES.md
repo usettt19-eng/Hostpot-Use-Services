@@ -99,7 +99,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-22 | Panel `/admin/stats` de estadísticas de visitantes (resumen diario, semanal, mensual) y enlace «Estadísticas» | (este) |
+| 2026-10-22 | Panel `/admin/stats` de estadísticas de visitantes (resumen diario, semanal, mensual) y enlace «Estadísticas» | `c48ce47` |
 | 2026-10-22 | Botón «Guardar y publicar» en el editor del portal: el usuario escribió los términos pero publicaba el borrador guardado (sin términos) y no podía publicar | `437ce8e` |
 | 2026-10-22 | «Después de conectar, ir a» también se aplica al personal que entra por «Soy del personal» | `eefaf21` |
 | 2026-10-22 | Crear usuario desde **Usuarios** (`createUser`, `lib/create-user.ts`) con nombres de usuario únicos (`lib/usernames.ts`, también al aprobar). 74 pruebas, con los caminos de fallo y su deshacer. **Pendiente** de probar con Supabase Auth y el router reales | `b503357` |
