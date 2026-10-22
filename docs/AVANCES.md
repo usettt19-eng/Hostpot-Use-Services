@@ -70,6 +70,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 - Primer canal de OTP (propuesta: correo y luego WhatsApp), retención de datos (propuesta: 24 meses, a confirmar con un abogado), pagos, login social, sectores adicionales, proveedor de IA, hardware de producción.
 
 ## 7. Problemas conocidos y lecciones
+- **Contraseña expuesta en el chat (2026-10-22):** la contraseña de administración de la malla Linksys quedó escrita en este chat. Cambiarla es pendiente.
 - Un `401` del router con la contraseña correcta en `curl`: la contraseña guardada en el portal era otra (autocompletado del navegador). Se desactivó el autocompletado en esos campos.
 - Un campo de huella guardado como `109902` (la IP sin puntos): ahora el portal exige 64 caracteres hexadecimales.
 - En RouterOS, `/certificate sign` falla con "CA not found" si no hay una CA: se creó `portal-ca` y se firmó con ella.
@@ -92,6 +93,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Velop en AP con IP fija en la red de pruebas (`velop-1` 192.168.200.2, `velop-2` 192.168.200.3). Investigación de la API local JNAP: `GET_DEVICES` y `connections[].parentDeviceID` confirmados en el código de `pyvelop`; el nodo responde en `/JNAP/`, pero rechaza la autorización por contraseña (`_ErrorUnauthorized`). **Pendiente**: la API no es accesible con la contraseña de la app; el dato por nodo requiere cable directo a cada puerto o un método de autorización distinto | (este) |
 | 2026-10-22 | Sincronización de invitados: los contadores de una sesión en curso se leen de `/ip/hotspot/active` (los del usuario solo se actualizan al terminar la sesión, `UPTIME 0s` en `/ip hotspot user`). Con dos invitados activos se comprobó: cada uno con su comentario `guest:<id>`, `session-time-left` ≈ 2 h y una cola dinámica de `2048k/5120k` | `054b660` |
 | 2026-10-22 | `login.html` descargado en `flash/hotspot` (674 bytes) y flujo de invitados probado con un dispositivo real: el router redirige al portal, el invitado entra y llega a la web original (neverssl envía a un subdominio aleatorio, es normal) | `3d97747` |
 | 2026-10-22 | Walled garden creado y verificado en el router de prueba (`connect.useservices.company` y `187.33.153.78:443`) | `c1cf74d` |
