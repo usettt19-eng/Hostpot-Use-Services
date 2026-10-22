@@ -96,7 +96,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
-| 2026-10-22 | Crear usuario desde **Usuarios** (`createUser`, `lib/create-user.ts`) con nombres de usuario únicos (`lib/usernames.ts`, también al aprobar). 74 pruebas, con los caminos de fallo y su deshacer. **Pendiente** de probar con Supabase Auth y el router reales | (este) |
+| 2026-10-22 | Crear usuario desde **Usuarios** (`createUser`, `lib/create-user.ts`) con nombres de usuario únicos (`lib/usernames.ts`, también al aprobar). 74 pruebas, con los caminos de fallo y su deshacer. **Pendiente** de probar con Supabase Auth y el router reales | `b503357` |
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
