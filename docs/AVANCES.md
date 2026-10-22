@@ -52,6 +52,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 4. **Seguridad del router:** cambiar la contraseña del usuario `portal` (la de prueba se escribió en un chat) y deshabilitar `telnet`, `ftp`, `www`, `api`.
 5. **Seguridad del servidor:** los puertos de Postgres/pooler (5432, 5433, 6543, 6544) están abiertos a internet y `ufw` está inactivo. Es de otras apps, pero es el riesgo mayor. Docker salta `ufw`: hay que publicarlos en `127.0.0.1`.
 5a. **Verificar qué es `bytes-in` y `bytes-out` en RouterOS.** Por la documentación de MikroTik, `bytes-in` son los bytes que el router **recibe del cliente** (su subida) y `bytes-out` los que **le envía** (su descarga). El portal los etiqueta al revés (`bytesIn` como «Descarga») en **Consumo** y **Visitantes**, convención heredada del código original. Comprobar con una descarga grande en un dispositivo (`/ip hotspot active print stats`: si `bytes-out` crece mucho más que `bytes-in`, las etiquetas están invertidas) y corregir.
+5a2. Activar el proceso periódico en el servidor (`docs/DESPLIEGUE.md` 3b). Falta también guardar historial de consumo (hoy solo el total de cada sesión).
 5b. **OTP por correo** (proveedor de correo), proceso en segundo plano para las sesiones, sedes y varios routers, panel con gráficas.
 6. Guardar `usage_stats` con una tarea programada (hoy el consumo no tiene historial).
 7. Tests de RLS del resto de tablas (hoy solo están las del portal).
@@ -93,6 +94,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Proceso periódico de invitados: `/api/cron/guests-sync` autorizado con `CRON_SECRET` (401 sin secreto, probado) y cron del servidor cada minuto (ver `docs/DESPLIEGUE.md` 3b). Pendiente de desplegar y activar en el servidor | (este) |
 | 2026-10-22 | Velop en AP con IP fija en la red de pruebas (`velop-1` 192.168.200.2, `velop-2` 192.168.200.3). Investigación de la API local JNAP: `GET_DEVICES` y `connections[].parentDeviceID` confirmados en el código de `pyvelop`; el nodo responde en `/JNAP/`, pero rechaza la autorización por contraseña (`_ErrorUnauthorized`). **Pendiente**: la API no es accesible con la contraseña de la app; el dato por nodo requiere cable directo a cada puerto o un método de autorización distinto | `4177a4a` |
 | 2026-10-22 | Sincronización de invitados: los contadores de una sesión en curso se leen de `/ip/hotspot/active` (los del usuario solo se actualizan al terminar la sesión, `UPTIME 0s` en `/ip hotspot user`). Con dos invitados activos se comprobó: cada uno con su comentario `guest:<id>`, `session-time-left` ≈ 2 h y una cola dinámica de `2048k/5120k` | `054b660` |
 | 2026-10-22 | `login.html` descargado en `flash/hotspot` (674 bytes) y flujo de invitados probado con un dispositivo real: el router redirige al portal, el invitado entra y llega a la web original (neverssl envía a un subdominio aleatorio, es normal) | `3d97747` |

@@ -31,6 +31,21 @@ sudo certbot --nginx -d connect.useservices.company    # instala certbot si falt
 ```
 El registro DNS (A) del subdominio debe apuntar a la IP del servidor antes de correr certbot.
 
+## 3b. Proceso periódico de invitados
+Cierra las sesiones terminadas y borra los usuarios temporales en el router, sin que nadie tenga que abrir **Visitantes**.
+1. Genera un secreto y añádelo al `.env` del servidor (no lo pegues en ningún chat):
+   ```bash
+   echo "CRON_SECRET=$(openssl rand -hex 32)" >> /opt/hotspot-portal/.env
+   cd /opt/hotspot-portal && docker compose up -d --build
+   ```
+2. Programa la tarea cada minuto:
+   ```bash
+   (crontab -l 2>/dev/null; echo '* * * * * . /opt/hotspot-portal/.env && curl -fsS -m 50 -H "Authorization: Bearer $CRON_SECRET" https://connect.useservices.company/api/cron/guests-sync >/dev/null 2>&1') | crontab -
+   ```
+3. Comprueba: `curl -s -o /dev/null -w "%{http_code}\n" https://connect.useservices.company/api/cron/guests-sync` debe dar `401` (sin secreto). Tras un minuto, `grep guests-sync /var/log/syslog` no muestra nada: el proceso es silencioso si todo va bien.
+
+Sin el secreto la ruta responde 401. El valor del `.env` no debe ir al repositorio ni al chat.
+
 ## 4. Actualizar
 ```bash
 cd /opt/hotspot-portal && git pull && docker compose up -d --build

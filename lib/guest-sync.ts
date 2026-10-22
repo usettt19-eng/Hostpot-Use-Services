@@ -7,6 +7,21 @@ import { isConfigured, listActiveSessions, listGuestUsers, deleteHotspotUser } f
  * - Sin sesión abierta pero ya usada (o pasados 10 minutos sin entrar): "ended", con los contadores finales,
  *   y se borra el usuario temporal del router.
  */
+/** Sincroniza todos los establecimientos que tengan sesiones abiertas. Lo llama el proceso periódico. */
+export async function syncAllGuestSessions(): Promise<{ tenants: number; checked: number; ended: number }> {
+  const { data } = await createAdminClient()
+    .from("guest_sessions").select("tenant_id").in("status", ["pending", "active"]).limit(5000);
+  const tenants = [...new Set((data ?? []).map((r) => r.tenant_id as string))];
+  let checked = 0;
+  let ended = 0;
+  for (const id of tenants) {
+    const r = await syncGuestSessions(id);
+    checked += r.checked;
+    ended += r.ended;
+  }
+  return { tenants: tenants.length, checked, ended };
+}
+
 export async function syncGuestSessions(tenantId: string): Promise<{ checked: number; ended: number; error?: string }> {
   const db = createAdminClient();
   const { data: open } = await db

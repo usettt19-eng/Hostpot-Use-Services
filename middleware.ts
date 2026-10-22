@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC = ["/login", "/register", "/register-school"];
 // Portal del invitado: accesible con o sin sesión (no redirige a quien ya inició sesión)
-const OPEN = ["/w/"];
+const OPEN = ["/w/", "/api/cron/"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
