@@ -71,6 +71,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 - Primer canal de OTP (propuesta: correo y luego WhatsApp), retención de datos (propuesta: 24 meses, a confirmar con un abogado), pagos, login social, sectores adicionales, proveedor de IA, hardware de producción.
 
 ## 7. Problemas conocidos y lecciones
+- **`useSearchParams` en `/register` (2026-10-22):** envolver la página en `Suspense` hacía que el formulario no viniera en el HTML del servidor (solo tras ejecutar JavaScript), lo que arriesga los mini-navegadores de portal cautivo. Se corrigió leyendo `searchParams` en el servidor (`app/register/page.tsx`) y pasando el código a `register-form.tsx`. Una comprobación con `curl` y `grep` lo detectó.
 - **Contraseña expuesta en el chat (2026-10-22):** la contraseña de administración de la malla Linksys quedó escrita en este chat. Cambiarla es pendiente.
 - Un `401` del router con la contraseña correcta en `curl`: la contraseña guardada en el portal era otra (autocompletado del navegador). Se desactivó el autocompletado en esos campos.
 - Un campo de huella guardado como `109902` (la IP sin puntos): ahora el portal exige 64 caracteres hexadecimales.
@@ -94,6 +95,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | (este) |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
 | 2026-10-22 | Desplegado en el servidor el código de horarios, suspensiones y equipos fijos (build correcto). Faltan las migraciones 0008 y 0009 en Supabase y las pruebas con router/alumno reales | `8ea0c0f` |
 | 2026-10-22 | Equipos fijos: migración 0009, página `/admin/fixed-devices`, excepciones por MAC en el Hotspot (`ip-binding bypassed`) y comprobación de estado contra el router. Probado con pruebas unitarias y un router falso; **pendiente** de probar en el router real (`/ip hotspot ip-binding print`) | `da89c46` |
