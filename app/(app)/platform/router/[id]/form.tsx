@@ -49,7 +49,7 @@ export default function RouterSetupForm({ tenantId }: { tenantId: string }) {
           <div className="card">
             <p className="okmsg">Listo. Contraseña del usuario «portal»: <strong>{state.password}</strong></p>
             <p className="muted">
-              {state.generated ? "Se generó para ti. " : ""}Guárdala ahora: no se vuelve a mostrar. Después, en <strong>Ancho de banda → Conexión al MikroTik</strong> de ese establecimiento,
+              {state.generated ? "Se generó para ti. " : ""}Guárdala ahora: no se vuelve a mostrar. Después, en <strong>Conexión del portal con el router</strong> (abajo en esta pantalla),
               escribe el usuario <strong>portal</strong>, esta contraseña y la huella del certificado que verás al ejecutar el bloque 2.
             </p>
             <p><button onClick={() => download(state.filename!, state.rsc!)}>Descargar archivo .rsc</button></p>
