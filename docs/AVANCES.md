@@ -45,7 +45,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Pruebas | `npm test` (8), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
-00. Aplicar `0008_access_windows.sql` y `0009_fixed_devices.sql` en Supabase. Probar equipos fijos en el router real. Probar horarios con un alumno y probar horarios con un alumno en la red de pruebas. Corregir límite de dispositivos (personal 2–3) por perfil de rol. Separar equipos fijos (impresoras, pantallas) con excepción por MAC o red propia.
+00. La migración 0009 está aplicada; confirmar que la 0008 (`access_windows`) también lo está. Probar equipos fijos en el router real. Probar horarios con un alumno y probar horarios con un alumno en la red de pruebas. Corregir límite de dispositivos (personal 2–3) por perfil de rol. Separar equipos fijos (impresoras, pantallas) con excepción por MAC o red propia.
 0. El acceso de invitados funciona en el router de prueba. Falta: comprobar **Visitantes** y las sesiones `g_…`, probar iOS y Android, y validar los puntos ⚠️ restantes de `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
 1. Probar el editor en el portal desplegado: escribir términos, guardar, publicar y subir un logo (el servidor ya tiene el código de `f9eb619`).
 2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot. **Ejecutado**: Hotspot `hotspot-test` en `bridge-hotspot` (`ether3`, `192.168.200.0/24`), con DHCP propio; la redirección al login funciona y `srubend` inició sesión (visible en `/ip hotspot active`). Falta medir velocidad y ver el consumo en el portal. Comandos, verificación y reversión en `docs/ROUTER-PRUEBA.md`. Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
@@ -95,6 +95,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | (este) |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
 | 2026-10-22 | Desplegado en el servidor el código de horarios, suspensiones y equipos fijos (build correcto). Faltan las migraciones 0008 y 0009 en Supabase y las pruebas con router/alumno reales | `8ea0c0f` |
