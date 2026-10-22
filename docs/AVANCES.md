@@ -34,7 +34,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 |---|---|---|
 | Registro | `/register-school` (tipo de establecimiento) y `/register` (roles según tipo) | En producción de pruebas |
 | Aprobación | Admin aprueba, fija rol, crea usuario en el Hotspot y muestra la contraseña una sola vez | Probado con un usuario real: aparece en `/ip hotspot user` con su perfil |
-| Perfiles de velocidad | Se crean y sincronizan en el router al aprobar o al pulsar Aplicar. Formato `rate-limit=subida/bajada` (p. ej. `2048k/5120k`) | Creado y visible en el router; un usuario ya inició sesión en el Hotspot de prueba; **falta medir velocidad con un dispositivo real** |
+| Perfiles de velocidad | Se crean y sincronizan en el router al aprobar o al pulsar Aplicar. Formato `rate-limit=subida/bajada` (p. ej. `2048k/5120k`) | Creado y visible en el router; un usuario ya inició sesión en el Hotspot de prueba y el router creó su cola dinámica con `max-limit=2048k/5120k` (subida/bajada del cliente, como se esperaba); **falta medir la velocidad real con un test de velocidad** |
 | Conexión al router | URL, usuario, contraseña cifrada (AES-256-GCM) y huella SHA-256 fijada | Funciona por el túnel |
 | Consumo | Lee `/ip/hotspot/user`. Sin historial guardado todavía | Carga sin error |
 | Portal personalizable | Editor `/admin/portal`, vista previa, publicación, historial, logo y fondo; portal público `/w/{código}` (simulado) | Pruebas unitarias, RLS en Postgres local y portal público contra un Supabase simulado. **El editor y la subida de imágenes no se han probado con sesión real** |
@@ -87,6 +87,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Cola dinámica de `srubend` comprobada: `max-limit=2048k/5120k` sobre `192.168.200.198`; el orden del límite coincide con lo esperado (falta la medición real) | (este) |
 | 2026-10-22 | Hotspot de prueba configurado y probado: redirección al login y sesión de `srubend` activa (192.168.200.198). Se ve el login estándar de MikroTik: el portal personalizado aún no está conectado al Hotspot | `81976c3` |
 | 2026-10-21 | Guía de configuración del Hotspot de prueba (`docs/ROUTER-PRUEBA.md`), no ejecutada todavía | `9d5280d` |
 | 2026-10-21 | Portal con personalización desplegado; `/w/use-test` responde 200 en producción (encuentra el establecimiento; muestra valores por defecto porque aún no se publica); sin errores en los logs; se ve bien en el navegador del usuario (valores por defecto, términos "pendientes de configurar"). Falta probar el editor | `b268739` |
