@@ -52,7 +52,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 4. **Seguridad del router:** cambiar la contraseña del usuario `portal` (la de prueba se escribió en un chat) y deshabilitar `telnet`, `ftp`, `www`, `api`.
 5. **Seguridad del servidor:** los puertos de Postgres/pooler (5432, 5433, 6543, 6544) están abiertos a internet y `ufw` está inactivo. Es de otras apps, pero es el riesgo mayor. Docker salta `ufw`: hay que publicarlos en `127.0.0.1`.
 5a. **Verificar qué es `bytes-in` y `bytes-out` en RouterOS.** Por la documentación de MikroTik, `bytes-in` son los bytes que el router **recibe del cliente** (su subida) y `bytes-out` los que **le envía** (su descarga). El portal los etiqueta al revés (`bytesIn` como «Descarga») en **Consumo** y **Visitantes**, convención heredada del código original. Comprobar con una descarga grande en un dispositivo (`/ip hotspot active print stats`: si `bytes-out` crece mucho más que `bytes-in`, las etiquetas están invertidas) y corregir.
-5a2. Activar el proceso periódico en el servidor (`docs/DESPLIEGUE.md` 3b). Falta también guardar historial de consumo (hoy solo el total de cada sesión).
+5a2. Falta guardar historial de consumo (hoy solo el total de cada sesión). Comprobar que las sesiones que venzan pasen a «Terminada» en **Visitantes**.
 5b. **OTP por correo** (proveedor de correo), proceso en segundo plano para las sesiones, sedes y varios routers, panel con gráficas.
 6. Guardar `usage_stats` con una tarea programada (hoy el consumo no tiene historial).
 7. Tests de RLS del resto de tablas (hoy solo están las del portal).
