@@ -65,6 +65,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 
 ## Pruebas
 - `npm test` (45 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `supabase/tests/base_rls.sql`: aislamiento de las tablas originales (establecimientos, perfiles, planes, usuarios del Hotspot, consumo y credenciales del router), con pendientes y suspendidos sin datos, y escrituras prohibidas al cliente.
 - `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 
 ## MikroTik (setup en el router)

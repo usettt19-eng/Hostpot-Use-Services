@@ -55,7 +55,6 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 5a2. Falta guardar historial de consumo (hoy solo el total de cada sesión). Comprobar que las sesiones que venzan pasen a «Terminada» en **Visitantes**.
 5b. **OTP por correo** (proveedor de correo), proceso en segundo plano para las sesiones, sedes y varios routers, panel con gráficas.
 6. Guardar `usage_stats` con una tarea programada (hoy el consumo no tiene historial).
-7. Tests de RLS del resto de tablas (hoy solo están las del portal).
 8. Fase 0 de SmartWiFi: prototipo de login externo del Hotspot (ver diseño, sección C) y validar lo marcado ⚠️.
 
 ## 6. Decisiones
@@ -94,6 +93,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Pruebas de aislamiento de las tablas originales (`supabase/tests/base_rls.sql`): pasan en Postgres local con las migraciones 0001-0007 y fallan si se relaja una política. Pendientes y suspendidos no ven planes ni usuarios | (este) |
 | 2026-10-22 | Proceso periódico de invitados: `/api/cron/guests-sync` autorizado con `CRON_SECRET` (401 sin secreto, probado) y cron del servidor cada minuto (ver `docs/DESPLIEGUE.md` 3b). Pendiente de desplegar y activar en el servidor | `2cea055` |
 | 2026-10-22 | Velop en AP con IP fija en la red de pruebas (`velop-1` 192.168.200.2, `velop-2` 192.168.200.3). Investigación de la API local JNAP: `GET_DEVICES` y `connections[].parentDeviceID` confirmados en el código de `pyvelop`; el nodo responde en `/JNAP/`, pero rechaza la autorización por contraseña (`_ErrorUnauthorized`). **Pendiente**: la API no es accesible con la contraseña de la app; el dato por nodo requiere cable directo a cada puerto o un método de autorización distinto | `4177a4a` |
 | 2026-10-22 | Sincronización de invitados: los contadores de una sesión en curso se leen de `/ip/hotspot/active` (los del usuario solo se actualizan al terminar la sesión, `UPTIME 0s` en `/ip hotspot user`). Con dos invitados activos se comprobó: cada uno con su comentario `guest:<id>`, `session-time-left` ≈ 2 h y una cola dinámica de `2048k/5120k` | `054b660` |
