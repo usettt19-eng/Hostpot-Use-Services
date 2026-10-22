@@ -60,6 +60,7 @@ export default async function PlatformPage() {
                     {!x.suspended && <input name="reason" placeholder="Motivo (opcional)" maxLength={200} style={{ width: 160 }} />}
                     <button className={x.suspended ? "ghost" : "danger"}>{x.suspended ? "Reactivar" : "Suspender"}</button>
                   </form>
+                  <p><a href={`/platform/router/${x.id}`}>Configurar router</a></p>
                 </td>
               </tr>
             ))}

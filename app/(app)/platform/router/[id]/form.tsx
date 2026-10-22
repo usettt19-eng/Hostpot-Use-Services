@@ -10,7 +10,7 @@ function download(name: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function RouterSetupForm() {
+export default function RouterSetupForm({ tenantId }: { tenantId: string }) {
   const [state, action, pending] = useActionState(generateRouterScript, null);
   const [wg, setWg] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
@@ -20,6 +20,7 @@ export default function RouterSetupForm() {
   return (
     <>
       <form action={action}>
+        <input type="hidden" name="tenant_id" value={tenantId} />
         <label>Puerto del router para el WiFi de visitantes</label>
         <input name="iface" defaultValue="ether3" required maxLength={30} />
         <label>Red de los visitantes (privada, termina en .0/24)</label>
@@ -48,7 +49,7 @@ export default function RouterSetupForm() {
           <div className="card">
             <p className="okmsg">Listo. Contraseña del usuario «portal»: <strong>{state.password}</strong></p>
             <p className="muted">
-              {state.generated ? "Se generó para ti. " : ""}Guárdala ahora: no se vuelve a mostrar. Después, en <strong>Ancho de banda → Conexión al MikroTik</strong>,
+              {state.generated ? "Se generó para ti. " : ""}Guárdala ahora: no se vuelve a mostrar. Después, en <strong>Ancho de banda → Conexión al MikroTik</strong> de ese establecimiento,
               escribe el usuario <strong>portal</strong>, esta contraseña y la huella del certificado que verás al ejecutar el bloque 2.
             </p>
             <p><button onClick={() => download(state.filename!, state.rsc!)}>Descargar archivo .rsc</button></p>

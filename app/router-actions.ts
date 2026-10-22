@@ -3,7 +3,8 @@
 import { randomBytes } from "node:crypto";
 import { resolve4 } from "node:dns/promises";
 import { headers } from "next/headers";
-import { requireAdminTenant } from "@/lib/portal";
+import { createAdminClient } from "@/lib/supabase";
+import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { buildRouterScript, toRsc, type ScriptBlock } from "@/lib/router-script";
 
 export type RouterScriptState = {
@@ -12,9 +13,13 @@ export type RouterScriptState = {
 
 const f = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
-/** Genera las instrucciones del router de este establecimiento. La contraseña no se guarda: se muestra una vez. */
+/** El dueño de la plataforma genera las instrucciones del router de un establecimiento. La contraseña no se guarda: se muestra una vez. */
 export async function generateRouterScript(_: RouterScriptState, fd: FormData): Promise<RouterScriptState> {
-  const ctx = await requireAdminTenant();
+  await requirePlatformAdmin();
+  const { data: t } = await createAdminClient()
+    .from("tenants").select("name, slug").eq("id", f(fd, "tenant_id")).maybeSingle();
+  if (!t) return { error: "Establecimiento no encontrado" };
+  const ctx = { slug: t.slug as string, tenantName: t.name as string };
   const h = await headers();
   const portalHost = (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(":")[0];
   let portalIp = "";
