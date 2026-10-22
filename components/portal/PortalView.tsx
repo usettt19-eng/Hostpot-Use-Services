@@ -1,8 +1,13 @@
 import type { CSSProperties } from "react";
 import type { PortalSettings } from "@/lib/portal-settings";
 import { FONT_STACK, RADIUS_PX, readableOn } from "@/lib/portal-theme";
+import GuestForm from "./GuestForm";
+
+type Hs = { mac: string; ip: string; login: string; orig: string; err?: string };
 
 type Props = {
+  slug: string;
+  hs?: Hs;
   settings: PortalSettings;
   locale: "es" | "en";
   termsVersion: number;
@@ -18,6 +23,7 @@ const T = {
     marketing: "Quiero recibir promociones y novedades (opcional)", privacy: "Política de privacidad",
     version: "versión", simulated: "Vista simulada: el acceso real se activa al conectarse al Hotspot.",
     noTerms: "Términos pendientes de configurar.",
+    connecting: "Conectando…", previewDone: "Vista previa: en el local, aquí se te conectaría a la red.",
   },
   en: {
     name: "Name", email: "Email", phone: "Phone", voucher: "Access code",
@@ -25,6 +31,7 @@ const T = {
     marketing: "I want to receive offers and news (optional)", privacy: "Privacy policy",
     version: "version", simulated: "Simulated view: real access is enabled when connecting through the Hotspot.",
     noTerms: "Terms not configured yet.",
+    connecting: "Connecting…", previewDone: "Preview: at the venue, this would connect you to the network.",
   },
 } as const;
 
@@ -43,6 +50,9 @@ const CSS = `
 .pv-btn{width:100%;margin-top:18px;padding:12px;border:0;border-radius:calc(var(--radius)/2);background:var(--primary);color:var(--on-primary);font:inherit;font-weight:600;cursor:pointer}
 .pv details{margin-top:12px;font-size:13px}
 .pv pre{white-space:pre-wrap;font:inherit;max-height:160px;overflow:auto;margin:6px 0 0;padding:8px;border-left:3px solid var(--accent)}
+.pv-err{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#fee2e2;color:#7f1d1d;font-size:13px}
+.pv-ok{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#dcfce7;color:#14532d;font-size:13px}
+.pv-btn:disabled{opacity:.6;cursor:default}
 .pv-foot{margin-top:16px;text-align:center;font-size:12px;opacity:.75}
 .pv-foot a{color:var(--text);text-decoration:underline}
 .pv-lang{position:absolute;top:10px;right:14px;font-size:13px}
@@ -55,7 +65,7 @@ const CSS = `
 @media(min-width:800px){.pv-split{grid-template-columns:1fr 1fr}.pv-split .pv-side{min-height:calc(100vh - 30px)}}
 `;
 
-export default function PortalView({ settings: s, locale, termsVersion, assetBase, langBase, banner }: Props) {
+export default function PortalView({ slug, hs = { mac: "", ip: "", login: "", orig: "" }, settings: s, locale, termsVersion, assetBase, langBase, banner }: Props) {
   const t = T[locale];
   const tx = s.texts[locale];
   const terms = s.terms[locale].trim() || s.terms[s.default_locale].trim();
@@ -72,32 +82,26 @@ export default function PortalView({ settings: s, locale, termsVersion, assetBas
     ...(s.template === "full" && bg ? { backgroundImage: bg, backgroundSize: "cover", backgroundPosition: "center" } : {}),
   } as CSSProperties;
 
+  // Los enlaces de idioma conservan los datos que manda el router
+  const langQuery = (l: string) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries({ mac: hs.mac, ip: hs.ip, login: hs.login, orig: hs.orig })) if (v) q.set(k, v);
+    q.set("lang", l);
+    return q.toString();
+  };
+
   const box = (
     <div className="pv-card-box">
       {s.assets.logo && <img className="pv-logo" src={`${assetBase}/${s.assets.logo}`} alt={s.display_name} />}
       <h1>{tx.title || s.display_name}</h1>
       {tx.subtitle && <p className="pv-sub">{tx.subtitle}</p>}
-      <form>
-        {s.fields.name !== "off" && (
-          <><label>{t.name}</label><input type="text" name="name" required={s.fields.name === "required"} autoComplete="name" /></>
-        )}
-        {s.methods.includes("email") && s.fields.email !== "off" && (
-          <><label>{t.email}</label><input type="email" name="email" required={s.fields.email === "required"} autoComplete="email" /></>
-        )}
-        {s.methods.includes("phone") && s.fields.phone !== "off" && (
-          <><label>{t.phone}</label><input type="tel" name="phone" required={s.fields.phone === "required"} autoComplete="tel" /></>
-        )}
-        {s.methods.includes("voucher") && (
-          <><label>{t.voucher}</label><input type="text" name="voucher" autoComplete="off" /></>
-        )}
-        <label className="pv-check"><input type="checkbox" name="accept_terms" required /> <span>{t.accept} ({t.version} {termsVersion})</span></label>
-        <label className="pv-check"><input type="checkbox" name="accept_marketing" /> <span>{t.marketing}</span></label>
-        <details>
-          <summary>{t.terms}</summary>
-          <pre>{terms || t.noTerms}</pre>
-        </details>
-        <button className="pv-btn" type="button">{tx.button}</button>
-      </form>
+      {hs.err && <p className="pv-err" role="alert">{hs.err.slice(0, 200)}</p>}
+      <GuestForm
+        slug={slug} locale={locale} fields={s.fields} methods={s.methods} button={tx.button}
+        termsVersion={termsVersion} terms={terms} hs={{ mac: hs.mac, ip: hs.ip, login: hs.login, orig: hs.orig }}
+        t={{ name: t.name, email: t.email, phone: t.phone, voucher: t.voucher, accept: t.accept, terms: t.terms,
+             marketing: t.marketing, version: t.version, noTerms: t.noTerms, connecting: t.connecting, previewDone: t.previewDone }}
+      />
       <div className="pv-foot">
         {tx.footer && <p>{tx.footer}</p>}
         {s.privacy_url && <a href={s.privacy_url} rel="noopener noreferrer" target="_blank">{t.privacy}</a>}
@@ -108,9 +112,9 @@ export default function PortalView({ settings: s, locale, termsVersion, assetBas
   return (
     <div className={`pv ${s.template === "split" ? "pv-split" : ""}`} style={style}>
       <style>{CSS}</style>
-      {banner ? <div className="pv-banner">{banner}</div> : <div className="pv-banner">{t.simulated}</div>}
+      {banner ? <div className="pv-banner">{banner}</div> : !hs.ip ? <div className="pv-banner">{t.simulated}</div> : null}
       <div className="pv-lang">
-        <a href={`${langBase}?lang=es`}>ES</a><a href={`${langBase}?lang=en`}>EN</a>
+        <a href={`${langBase}?${langQuery("es")}`}>ES</a><a href={`${langBase}?${langQuery("en")}`}>EN</a>
       </div>
       {s.template === "split" ? (
         <>

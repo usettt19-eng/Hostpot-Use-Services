@@ -36,6 +36,7 @@ Administradores: `superadmin`, `director`, `manager` (`ADMIN_ROLES` / `is_admin(
 | `bandwidth_profiles` | Un perfil por (tenant, rol): `download_kbps`, `upload_kbps`. Se siembra con un trigger al crear el tenant |
 | `hotspot_users` | Usuario Hotspot ligado a un `profile`. `unique(tenant_id, username)`, `disabled` |
 | `usage_stats` | Historial de bytes in/out por usuario (`recorded_at`) |
+| `guests`, `guest_consents`, `guest_sessions` | Invitados del portal cautivo: personas (correo y teléfono cifrados + hash de búsqueda), consentimientos (términos con versión, promociones) y sesiones de WiFi (MAC solo como hash). Solo escribe el servidor; los admins leen por RLS |
 | `portal_versions` | Personalización del portal del invitado por establecimiento: `settings` (jsonb validado con zod), `status` (draft/published/archived), `terms_version`. Solo escribe el servidor; los admins leen por RLS |
 
 Helpers RLS: `current_tenant()` y `is_admin()` (ambas `security definer`).
@@ -51,15 +52,19 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 6. **Panel de consumo**: lee `/ip/hotspot/user` (bytes-in / bytes-out) y agrega por usuario y por rol.
 
 ## Portal del invitado y personalización
-- `/w/{slug}`: portal público del establecimiento (con o sin sesión). Hoy es **simulado**: muestra el diseño y los campos, pero aún no conecta con el Hotspot.
+- `/w/{slug}`: portal público del establecimiento (con o sin sesión). Sin datos del Hotspot en la URL es una vista previa; con `mac`, `ip`, `login` y `orig` (los manda `deploy/mikrotik/login.html`) conecta al invitado.
 - `/admin/portal`: editor para admins (borrador, vista previa, publicación, historial, logo y fondo). `/preview/portal`: vista previa del borrador (solo admins, incrustable solo en el mismo sitio).
 - Los ajustes se validan con `lib/portal-settings.ts` al escribir y otra vez al leer. **Nunca** HTML, CSS ni JS libres del cliente; URLs solo `https://`; imágenes PNG/JPG/WebP verificadas por contenido y servidas desde `/w/{slug}/assets/` (bucket privado `portal-assets`).
 - Publicar usa `publish_portal_version()` (solo service role): archiva la publicada y sube `terms_version` si cambiaron los términos.
+- **Acceso del invitado (por correo, sin OTP todavía):** `guestConnect` (`app/guest-actions.ts`) → `connectGuest` (`lib/guest-flow.ts`, con dependencias inyectadas y probado). Orden: validar el formulario y los datos del Hotspot (`login` solo `http(s)://<IP privada>/login`) → límites de intentos antes de tocar el router (`lib/rate-limit.ts`, en memoria: 30 por minuto por IP pública y 120 por local; vale mientras haya un solo proceso) y de sesiones creadas (3 por minuto por IP del visitante, 60 por local) → comprobar en el router (`/ip/hotspot/host`) que la IP y la MAC existen y coinciden → guardar invitado, consentimientos y sesión → perfil de velocidad y usuario temporal `g_<hex>` con `limit-uptime` (`session_minutes` de los ajustes) → redirección GET al login del Hotspot con la credencial de un solo uso. El plan de red es el perfil del rol de menor privilegio del tipo de establecimiento.
+- **El correo no está verificado:** cualquiera puede escribir un correo ajeno. No usar esos datos para nada sensible hasta añadir el OTP.
+- `/admin/guests` (Visitantes): estadísticas, lista, borrado (derecho de supresión, en cascada) y CSV (`/admin/guests/export`, con protección contra fórmulas). Al abrirla se sincronizan las sesiones con el router (`lib/guest-sync.ts`) y se borran los usuarios temporales terminados; no hay proceso en segundo plano todavía.
+- Los datos personales se cifran con AES-GCM y se buscan con `blindIndex` (`lib/crypto.ts`), derivado de `ROUTER_CRED_KEY`: **esa clave ahora también protege los datos de invitados**.
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
-- `npm test`: validación de ajustes, contraste, detección de imágenes e idioma.
-- `supabase/tests/portal_rls.sql`: aislamiento entre establecimientos, permisos y publicación. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
+- `npm test` (40 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 
 ## MikroTik (setup en el router)
 ```
@@ -91,7 +96,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql` y `0006_portal_customization.sql` (cada uno por separado, en orden).
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql` y `0007_guests.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Abrir `/register-school` para crear el establecimiento y su administrador.

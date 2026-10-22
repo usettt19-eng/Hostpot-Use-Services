@@ -27,6 +27,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | 0003 | Valores nuevos de `user_role` | Aplicada |
 | 0004 | Tipo de establecimiento y semilla de anchos de banda por tipo | Aplicada |
 | 0005 | Huella del certificado del router | Aplicada (comprobada) |
+| 0007 | Invitados del portal cautivo: `guests`, `guest_consents`, `guest_sessions` | **Pendiente de ejecutar en Supabase** |
 | 0006 | Personalización del portal: `portal_versions`, publicación atómica, bucket `portal-assets` | Aplicada. Bucket comprobado (`portal-assets`, privado). La tabla `portal_versions` se da por creada porque el bucket es lo último que hace el script; no se ha mostrado su conteo |
 
 ## 4. Funcionalidad hecha
@@ -38,16 +39,19 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Conexión al router | URL, usuario, contraseña cifrada (AES-256-GCM) y huella SHA-256 fijada | Funciona por el túnel |
 | Consumo | Lee `/ip/hotspot/user`. Sin historial guardado todavía | Carga sin error |
 | Portal personalizable | Editor `/admin/portal`, vista previa, publicación, historial, logo y fondo; portal público `/w/{código}` (simulado) | Pruebas unitarias, RLS en Postgres local y portal público contra un Supabase simulado. **El editor y la subida de imágenes no se han probado con sesión real** |
+| Acceso de invitados por correo | Redirección del Hotspot al portal, formulario con consentimientos, comprobación del dispositivo en el router, usuario temporal y redirección al login; página **Visitantes** (estadísticas, borrado, CSV) | 40 pruebas, RLS de las tablas nuevas en Postgres local y flujo completo con navegador contra un Supabase y un router **simulados**. **No probado con un router ni un móvil reales**; el correo no se verifica (sin OTP) |
 | Seguridad | Credenciales del router cifradas, RLS, escritura solo por service role en tablas sensibles, CSP en `/w/*` | Ver `CLAUDE.md` |
 | Despliegue | Docker, nginx y HTTPS | En producción de pruebas |
 | Pruebas | `npm test` (8), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
+0. **Ejecutar `0007_guests.sql` en Supabase**, desplegar y seguir `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
 1. Probar el editor en el portal desplegado: escribir términos, guardar, publicar y subir un logo (el servidor ya tiene el código de `f9eb619`).
 2. **Router de prueba:** red aparte en `ether3` (bridge `bridge-hotspot`, `192.168.200.0/24`) y Hotspot. **Ejecutado**: Hotspot `hotspot-test` en `bridge-hotspot` (`ether3`, `192.168.200.0/24`), con DHCP propio; la redirección al login funciona y `srubend` inició sesión (visible en `/ip hotspot active`). Falta medir velocidad y ver el consumo en el portal. Comandos, verificación y reversión en `docs/ROUTER-PRUEBA.md`. Nunca activar el Hotspot sobre `bridge1`, `bridge2` ni las VLAN: es una red en uso.
 3. Medir velocidad con un dispositivo real (esperado: 5 Mbps bajada, 2 de subida con el perfil Clientes). Si salen invertidas, cambiar el orden en `lib/mikrotik.ts`.
 4. **Seguridad del router:** cambiar la contraseña del usuario `portal` (la de prueba se escribió en un chat) y deshabilitar `telnet`, `ftp`, `www`, `api`.
 5. **Seguridad del servidor:** los puertos de Postgres/pooler (5432, 5433, 6543, 6544) están abiertos a internet y `ufw` está inactivo. Es de otras apps, pero es el riesgo mayor. Docker salta `ufw`: hay que publicarlos en `127.0.0.1`.
+5b. **OTP por correo** (proveedor de correo), proceso en segundo plano para las sesiones, sedes y varios routers, panel con gráficas.
 6. Guardar `usage_stats` con una tarea programada (hoy el consumo no tiene historial).
 7. Tests de RLS del resto de tablas (hoy solo están las del portal).
 8. Fase 0 de SmartWiFi: prototipo de login externo del Hotspot (ver diseño, sección C) y validar lo marcado ⚠️.
@@ -87,7 +91,9 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-22 | Acceso de invitados por correo: migración 0007, flujo `guestConnect`, página Visitantes, `login.html` del Hotspot, `session_minutes`, límite de intentos antes de consultar el router; guía del router (sección 8) | (este) |
 | 2026-10-22 | Cola dinámica de `srubend` comprobada: `max-limit=2048k/5120k` sobre `192.168.200.198`; el orden del límite coincide con lo esperado (falta la medición real) | `90d9707` |
+| 2026-10-22 | El usuario pidió varias sesiones en paralelo: `shared-users=5` en el perfil `Clientes` o usuarios de prueba (documentado) | — |
 | 2026-10-22 | Hotspot de prueba configurado y probado: redirección al login y sesión de `srubend` activa (192.168.200.198). Se ve el login estándar de MikroTik: el portal personalizado aún no está conectado al Hotspot | `81976c3` |
 | 2026-10-21 | Guía de configuración del Hotspot de prueba (`docs/ROUTER-PRUEBA.md`), no ejecutada todavía | `9d5280d` |
 | 2026-10-21 | Portal con personalización desplegado; `/w/use-test` responde 200 en producción (encuentra el establecimiento; muestra valores por defecto porque aún no se publica); sin errores en los logs; se ve bien en el navegador del usuario (valores por defecto, términos "pendientes de configurar"). Falta probar el editor | `b268739` |

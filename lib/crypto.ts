@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 
 // AES-256-GCM. La clave (32 bytes en base64) viene de ROUTER_CRED_KEY; solo servidor.
 function key() {
@@ -19,4 +19,13 @@ export function decryptSecret(blob: string): string {
   const d = createDecipheriv("aes-256-gcm", key(), iv);
   d.setAuthTag(tag);
   return Buffer.concat([d.update(enc), d.final()]).toString("utf8");
+}
+
+/**
+ * Índice ciego: HMAC determinista para buscar datos cifrados (p. ej. un correo) sin descifrarlos.
+ * La clave se deriva de ROUTER_CRED_KEY; `scope` (el establecimiento) evita que el mismo dato dé el mismo hash en otro.
+ */
+export function blindIndex(scope: string, value: string): string {
+  const k = createHmac("sha256", key()).update("blind-index-v1").digest();
+  return createHmac("sha256", k).update(`${scope}:${value}`).digest("hex");
 }

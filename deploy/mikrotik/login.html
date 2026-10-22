@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conectando…</title>
+<!--
+  Página de inicio de sesión del Hotspot de MikroTik que redirige al portal del establecimiento.
+  Sustituye "connect.useservices.company" y "use-test" (código del establecimiento) y sube este archivo
+  como hotspot/login.html. Las variables $(…) las reemplaza el router.
+-->
+<meta http-equiv="refresh" content="0; url=https://connect.useservices.company/w/use-test?mac=$(mac-esc)&amp;ip=$(ip)&amp;login=$(link-login-only-esc)&amp;orig=$(link-orig-esc)&amp;err=$(error-esc)">
+</head>
+<body style="font-family:system-ui,sans-serif;text-align:center;margin-top:20vh">
+<p>Conectando…</p>
+<p><a href="https://connect.useservices.company/w/use-test?mac=$(mac-esc)&amp;ip=$(ip)&amp;login=$(link-login-only-esc)&amp;orig=$(link-orig-esc)&amp;err=$(error-esc)">Continuar</a></p>
+</body>
+</html>

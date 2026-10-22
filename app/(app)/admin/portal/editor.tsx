@@ -110,6 +110,8 @@ export function EditorForm({ s }: { s: PortalSettings }) {
         <div><label>Teléfono</label>{sel("field_phone", s.fields.phone, FIELD_MODES, FIELD_MODE_LABEL)}</div>
       </div>
       <p className="muted">Pide solo los datos que realmente necesitas: cada dato extra debe justificarse legalmente.</p>
+      <label>Duración de la sesión del invitado (minutos, 10 a 1440)</label>
+      <input name="session_minutes" type="number" min={10} max={1440} defaultValue={s.session_minutes} required />
       <label>Después de conectar, ir a (https://…, opcional)</label>
       <input name="redirect_url" defaultValue={s.redirect_url} placeholder="https://tusitio.com/bienvenida" />
       <label>Enlace a tu política de privacidad (https://…, opcional)</label>

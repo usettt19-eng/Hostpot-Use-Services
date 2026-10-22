@@ -17,7 +17,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
   const banner = draft ? "BORRADOR sin publicar" : published ? "Versión publicada" : "Valores por defecto: aún no hay versión publicada";
   return (
     <PortalView
-      settings={settings} locale={locale} termsVersion={row?.terms_version ?? 1}
+      slug={ctx.slug} settings={settings} locale={locale} termsVersion={row?.terms_version ?? 1}
       assetBase="/preview/portal/assets" langBase="/preview/portal" banner={banner}
     />
   );

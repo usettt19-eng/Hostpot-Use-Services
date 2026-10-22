@@ -1,7 +1,7 @@
 # Despliegue en el servidor (Docker + nginx + Supabase en la nube)
 
 ## 1. Supabase (nube)
-1. Crea el proyecto y, en el SQL Editor, ejecuta **cada archivo por separado y en orden**: `0001_init.sql`, `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql` y `0006_portal_customization.sql` (esta última también crea el bucket privado `portal-assets`).
+1. Crea el proyecto y, en el SQL Editor, ejecuta **cada archivo por separado y en orden**: `0001_init.sql`, `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql` y `0006_portal_customization.sql` (también crea el bucket privado `portal-assets`) y `0007_guests.sql` (invitados, consentimientos y sesiones).
 2. En Project Settings → API copia: URL, `anon` key y `service_role` key.
 
 ## 2. Servidor

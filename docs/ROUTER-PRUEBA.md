@@ -73,5 +73,38 @@ Debe verse `hotspot-test` sin `X` y `dhcp-hotspot` sin `X`.
 /interface bridge port add bridge=bridge1 interface=ether3
 ```
 
+## 8. Portal del invitado en el Hotspot (acceso por correo)
+Hace que el router muestre **tu** portal (`/w/{código}`) en lugar del login de MikroTik. Requiere haber desplegado el portal con la migración `0007`, tener el router del establecimiento configurado en **Ancho de banda** y, de preferencia, un portal publicado en **Portal**.
+
+**a) Permitir que el visitante alcance el portal antes de iniciar sesión** (walled garden):
+```
+/ip hotspot walled-garden add dst-host=connect.useservices.company comment="portal"
+/ip hotspot walled-garden ip add dst-address=187.33.153.78 protocol=tcp dst-port=443 action=accept comment="portal"
+```
+⚠️ La regla por IP deja abierto el puerto 443 de esa IP, que es la del VPS: el visitante sin sesión podría abrir cualquier otro sitio que alojes ahí. Es aceptable para pruebas; para producción conviene una IP exclusiva del portal.
+
+**b) Cambiar la página de inicio de sesión del Hotspot.** Usa `deploy/mikrotik/login.html` del repositorio (cambia el dominio y el código `use-test` si hace falta).
+1. Guarda la original: `/ip hotspot print` y luego `/file print where name~"hotspot/login"`. Si la carpeta `hotspot/` no existe, ejecuta `/ip hotspot reset-html` ⚠️.
+2. Renómbrala: `/file set [find name="hotspot/login.html"] name="hotspot/login-original.html"`.
+3. En WinBox → Files, arrastra el `login.html` del repositorio dentro de la carpeta `hotspot/`.
+4. Que el perfil acepte el inicio de sesión con usuario y contraseña por URL: `/ip hotspot profile set hsprof-test login-by=http-chap,http-pap` (ya está así).
+
+**c) Probar**
+1. Conecta un dispositivo a `ether3`, abre `http://neverssl.com`: debe llevarte a `https://connect.useservices.company/w/use-test?...` con tu diseño. ⚠️ Si ves el texto `$(mac-esc)` sin sustituir en la URL, esa variable no existe en tu versión: pega la URL.
+2. Escribe un correo, acepta los términos y pulsa el botón: debe pasar un instante por el login del Hotspot y abrir la web original.
+3. En el router: `/ip hotspot active print` (un usuario `g_…`) y `/ip hotspot user print` (el usuario temporal).
+4. En el portal: **Visitantes** debe mostrar el correo, y **Consumo** sigue mostrando solo a los usuarios aprobados.
+
+**d) Deshacer**
+```
+/file remove [find name="hotspot/login.html"]
+/file set [find name="hotspot/login-original.html"] name="hotspot/login.html"
+/ip hotspot walled-garden remove [find comment="portal"]
+/ip hotspot walled-garden ip remove [find comment="portal"]
+```
+
+## Varias sesiones con un mismo usuario (pruebas)
+El límite de un dispositivo por usuario viene del perfil: `/ip hotspot user profile set Clientes shared-users=5`. Afecta a todos los usuarios con ese perfil. Los usuarios creados solo en el router (`/ip hotspot user add ...`) no aparecen en el portal.
+
 ## Lo que NO hace falta todavía
-El portal cautivo de invitados (`/w/{código}`) hoy es una vista simulada: **no se conecta con el Hotspot**. Para esa fase (diseño en `docs/DISENO-SMARTWIFI.md`, sección C) harán falta, además de lo de arriba: un `login.html` que redirija al portal, entradas en el *walled garden* para que el cliente alcance el portal antes de iniciar sesión, y `login-by=http-pap`. Se prepararán y probarán en la Fase 0.
+Verificación de correo (OTP) y el panel con gráficas: ver `docs/DISENO-SMARTWIFI.md`. El acceso por correo de la sección 8 **no verifica** que el correo sea del visitante.

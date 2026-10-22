@@ -14,7 +14,7 @@ export type RouterConfig = {
 
 export type RouterUserUsage = { name: string; bytesIn: number; bytesOut: number; disabled: boolean };
 
-const isConfigured = (c: RouterConfig) => !!(c.router_url && c.router_user && c.router_password);
+export const isConfigured = (c: RouterConfig) => !!(c.router_url && c.router_user && c.router_password);
 
 export const normalizeFingerprint = (f: string | null | undefined) =>
   (f ?? "").replace(/[^0-9a-f]/gi, "").toUpperCase();
@@ -144,6 +144,52 @@ export async function fetchUsage(c: RouterConfig, usernames: string[]): Promise<
         disabled: u.disabled === "true",
       })),
   };
+}
+
+// ---- Invitados (portal cautivo) ----
+
+export type HostInfo = { mac: string; authorized: boolean; bypassed: boolean; server: string };
+
+/** Busca en /ip/hotspot/host el dispositivo con esa IP. Sirve para comprobar que la MAC/IP de la URL es real. */
+export async function findHostByAddress(c: RouterConfig, ip: string): Promise<HostInfo | null> {
+  const rows = await rest<Record<string, string>[]>(c, "GET", `/ip/hotspot/host?address=${encodeURIComponent(ip)}`);
+  const h = rows.find((r) => r.address === ip);
+  if (!h) return null;
+  return {
+    mac: (h["mac-address"] ?? "").toUpperCase(),
+    authorized: h.authorized === "true",
+    bypassed: h.bypassed === "true",
+    server: h.server ?? "",
+  };
+}
+
+export type GuestUserSpec = { name: string; password: string; profile: string; limitUptime: string; comment: string };
+
+export async function createGuestUser(c: RouterConfig, u: GuestUserSpec) {
+  await rest(c, "PUT", "/ip/hotspot/user", {
+    name: u.name, password: u.password, profile: u.profile, "limit-uptime": u.limitUptime, comment: u.comment,
+  });
+}
+
+export type GuestUserInfo = { name: string; bytesIn: number; bytesOut: number; uptime: string };
+
+/** Usuarios temporales de invitados (nombre "g_…") con sus contadores. */
+export async function listGuestUsers(c: RouterConfig): Promise<GuestUserInfo[]> {
+  const all = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/user");
+  return all
+    .filter((u) => typeof u.name === "string" && u.name.startsWith("g_"))
+    .map((u) => ({
+      name: u.name,
+      bytesIn: Number(u["bytes-in"] ?? 0),
+      bytesOut: Number(u["bytes-out"] ?? 0),
+      uptime: u.uptime ?? "0s",
+    }));
+}
+
+/** Nombres de usuario con sesión abierta ahora mismo. */
+export async function listActiveUsers(c: RouterConfig): Promise<Set<string>> {
+  const rows = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/active");
+  return new Set(rows.map((r) => r.user).filter(Boolean));
 }
 
 export const formatBytes = (n: number) => {
