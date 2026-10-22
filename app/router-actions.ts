@@ -3,7 +3,11 @@
 import { randomBytes } from "node:crypto";
 import { resolve4 } from "node:dns/promises";
 import { headers } from "next/headers";
-import { createAdminClient } from "@/lib/supabase";
+import { revalidatePath } from "next/cache";
+import { createAdminClient, getRouterConfig } from "@/lib/supabase";
+import { encryptSecret } from "@/lib/crypto";
+import { validateRouterInput } from "@/lib/router-config";
+import { isConfigured, syncBandwidthProfile, testConnection } from "@/lib/mikrotik";
 import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { buildRouterScript, toRsc, type ScriptBlock } from "@/lib/router-script";
 
@@ -42,4 +46,54 @@ export async function generateRouterScript(_: RouterScriptState, fd: FormData): 
     rsc: toRsc(r.blocks, `Configuración del router de ${ctx.tenantName} (${ctx.slug})`),
     filename: `router-${ctx.slug}.rsc`,
   };
+}
+
+export type RouterConnState = { error?: string; ok?: string; warn?: string } | null;
+
+/**
+ * El dueño guarda la conexión del portal con el router de un establecimiento, la prueba y sube sus perfiles de velocidad.
+ * Sin contraseña nueva se conserva la guardada.
+ */
+export async function saveTenantRouter(_: RouterConnState, fd: FormData): Promise<RouterConnState> {
+  await requirePlatformAdmin();
+  const id = f(fd, "tenant_id");
+  const db = createAdminClient();
+  const { data: t } = await db.from("tenants").select("id").eq("id", id).maybeSingle();
+  if (!t) return { error: "Establecimiento no encontrado" };
+  const { data: cur } = await db.from("tenant_router_credentials").select("router_password_enc").eq("tenant_id", id).maybeSingle();
+
+  const v = validateRouterInput({
+    url: f(fd, "router_url"), user: f(fd, "router_user"), password: String(fd.get("router_password") ?? ""),
+    fingerprint: f(fd, "router_cert_fingerprint"), hasPassword: !!cur?.router_password_enc,
+  });
+  if (!v.ok) return { error: v.error };
+
+  const patch: Record<string, string | null> = {
+    tenant_id: id, router_url: v.url, router_user: v.user, router_cert_fingerprint: v.fingerprint, updated_at: new Date().toISOString(),
+  };
+  if (v.password) patch.router_password_enc = encryptSecret(v.password);
+  const { error } = await db.from("tenant_router_credentials").upsert(patch, { onConflict: "tenant_id" });
+  if (error) {
+    console.error("saveTenantRouter:", error.message);
+    return { error: "No se pudo guardar la conexión del router" };
+  }
+  revalidatePath(`/platform/router/${id}`);
+
+  // Probar y, si responde, subir los perfiles de velocidad del establecimiento
+  const cfg = await getRouterConfig(id);
+  if (!isConfigured(cfg)) return { error: "Los datos se guardaron pero la conexión quedó incompleta" };
+  let info: { board: string; version: string };
+  try {
+    info = await testConnection(cfg);
+  } catch (e) {
+    return { warn: `Guardado, pero el router no respondió: ${e instanceof Error ? e.message : "error"}. Revisa el túnel, la URL, el usuario y la huella.` };
+  }
+  const { data: plans } = await db.from("bandwidth_profiles").select("name, download_kbps, upload_kbps").eq("tenant_id", id);
+  let synced = 0;
+  for (const p of plans ?? []) {
+    try { await syncBandwidthProfile(cfg, p.name, p.download_kbps, p.upload_kbps); synced++; } catch (e) {
+      console.error("saveTenantRouter perfil:", e instanceof Error ? e.message : "error");
+    }
+  }
+  return { ok: `Conectado: ${info.board}, RouterOS ${info.version}. Perfiles de velocidad subidos: ${synced} de ${plans?.length ?? 0}.` };
 }

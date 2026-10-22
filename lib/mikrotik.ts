@@ -265,3 +265,9 @@ export async function enableUsers(c: RouterConfig, usernames: string[]): Promise
   }
   return n;
 }
+
+/** Prueba la conexión y devuelve el modelo y la versión de RouterOS. */
+export async function testConnection(c: RouterConfig): Promise<{ board: string; version: string }> {
+  const r = await rest<Record<string, string>>(c, "GET", "/system/resource");
+  return { board: r["board-name"] ?? "?", version: r["version"] ?? "?" };
+}
