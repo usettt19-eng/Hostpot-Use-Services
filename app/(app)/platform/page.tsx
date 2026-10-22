@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase";
 import { setTenantSuspended } from "@/app/platform-actions";
 import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { summarizeTenants } from "@/lib/platform";
+import NewTenantForm from "./new-tenant-form";
 
 export const dynamic = "force-dynamic";
 const LIMIT = 20_000;
@@ -35,6 +36,7 @@ export default async function PlatformPage() {
         </div>
         {truncated && <p className="err">Hay muchos registros: las cifras pueden estar incompletas.</p>}
       </div>
+      <NewTenantForm />
       <div className="card scroll">
         <table className="table">
           <thead><tr><th>Establecimiento</th><th>Tipo</th><th>Usuarios</th><th>Pendientes</th><th>Visitantes</th><th>Conexiones (30 d)</th><th>Router</th><th>Estado</th><th /></tr></thead>

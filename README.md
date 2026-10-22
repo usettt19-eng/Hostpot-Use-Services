@@ -14,7 +14,7 @@ Next.js 15 + Supabase + MikroTik RouterOS v7 (REST).
 1. Crea un proyecto en Supabase y ejecuta `supabase/migrations/0001_init.sql` en el SQL editor.
 2. Copia `.env.example` a `.env.local` y completa las claves.
 3. `npm install && npm run dev`
-4. Abre `/register-school` para crear tu establecimiento y su administrador. El código del establecimiento que se muestra sirve para que los demás se registren en `/register`.
+4. Entra a `/platform` (tu correo en `PLATFORM_ADMIN_EMAILS`) para crear el establecimiento y su administrador; para el primer arranque puedes abrir `/register-school` con `ALLOW_PUBLIC_SCHOOL_REGISTRATION=1`. El código del establecimiento que se muestra sirve para que los demás se registren en `/register`.
 5. En **Ancho de banda → Conexión al MikroTik** ingresa URL, usuario y contraseña.
 
 ## MikroTik

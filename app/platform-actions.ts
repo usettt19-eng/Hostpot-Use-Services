@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient, getRouterConfig } from "@/lib/supabase";
+import { randomBytes } from "node:crypto";
 import { requirePlatformAdmin } from "@/lib/platform-auth";
+import { createTenantWithAdmin } from "@/lib/create-tenant";
+import { tenantDeps } from "@/lib/tenant-deps";
 import { cutAllAccess, enableUsers } from "@/lib/mikrotik";
 
 /** Suspende o reactiva un establecimiento: guarda el estado y corta o restablece el WiFi en su router. */
@@ -35,4 +38,19 @@ export async function setTenantSuspended(fd: FormData) {
     console.error("setTenantSuspended router:", e instanceof Error ? e.message : "error");
   }
   revalidatePath("/platform");
+}
+
+export type NewTenantState = { error?: string; created?: { name: string; slug: string; email: string; password: string } } | null;
+
+/** Alta de un establecimiento por el dueño: crea el administrador con una contraseña temporal que se muestra una sola vez. */
+export async function createTenant(_: NewTenantState, fd: FormData): Promise<NewTenantState> {
+  await requirePlatformAdmin();
+  const password = randomBytes(9).toString("base64url");
+  const r = await createTenantWithAdmin(tenantDeps(), {
+    name: String(fd.get("name") ?? ""), type: String(fd.get("type") ?? ""),
+    fullName: String(fd.get("full_name") ?? ""), email: String(fd.get("email") ?? ""), password,
+  });
+  if (!r.ok) return { error: r.error };
+  revalidatePath("/platform");
+  return { created: { name: r.name, slug: r.slug, email: r.email, password } };
 }

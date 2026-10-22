@@ -18,8 +18,8 @@ import {
 } from "@/lib/mikrotik";
 import { isAdminRole, isEstablishmentType, rolesFor, DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 
-const slugify = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+import { slugify, createTenantWithAdmin } from "@/lib/create-tenant";
+import { tenantDeps, publicRegistrationOpen } from "@/lib/tenant-deps";
 
 /* ---------- Auth ---------- */
 
@@ -78,36 +78,17 @@ export async function register(_: unknown, fd: FormData) {
   return { ok: "Cuenta creada. Un administrador debe aprobarla antes de que puedas usar la red." };
 }
 
-/** Crea un establecimiento nuevo (tenant) y su primer administrador activo. */
+/**
+ * Alta pública de un establecimiento. Cerrada por defecto: los establecimientos los crea el dueño desde /platform.
+ * Esta acción es pública (cualquiera puede llamarla), por eso la comprobación va aquí y no solo en la página.
+ */
 export async function registerSchool(_: unknown, fd: FormData) {
-  const name = String(fd.get("school_name")).trim();
-  const slug = slugify(name);
-  const type = String(fd.get("type"));
-  if (!slug) return { error: "Nombre de establecimiento inválido" };
-  if (!isEstablishmentType(type)) return { error: "Tipo de establecimiento inválido" };
-
-  const admin = createAdminClient();
-  const { data: tenant, error: tErr } = await admin.from("tenants").insert({ name, slug, type }).select("id").single();
-  if (tErr) return { error: tErr.code === "23505" ? "Ya existe un establecimiento con ese nombre" : tErr.message };
-
-  const { data, error } = await admin.auth.admin.createUser({
-    email: String(fd.get("email")),
-    password: String(fd.get("password")),
-    email_confirm: true,
+  if (!publicRegistrationOpen()) return { error: "El registro de establecimientos está cerrado. Contacta al administrador de la plataforma" };
+  const r = await createTenantWithAdmin(tenantDeps(), {
+    name: String(fd.get("school_name") ?? ""), type: String(fd.get("type") ?? ""),
+    fullName: String(fd.get("full_name") ?? ""), email: String(fd.get("email") ?? ""), password: String(fd.get("password") ?? ""),
   });
-  if (error || !data.user) {
-    await admin.from("tenants").delete().eq("id", tenant.id);
-    return { error: error?.message ?? "No se pudo crear la cuenta" };
-  }
-  await admin.from("profiles").insert({
-    id: data.user.id,
-    tenant_id: tenant.id,
-    full_name: String(fd.get("full_name")),
-    requested_role: "superadmin",
-    role: "superadmin",
-    status: "active",
-  });
-  return { ok: `Establecimiento creado. Código para registrar usuarios: ${slug}` };
+  return r.ok ? { ok: `Establecimiento creado. Código para registrar usuarios: ${r.slug}` } : { error: r.error };
 }
 
 /* ---------- Administración ---------- */

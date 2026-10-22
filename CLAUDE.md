@@ -14,7 +14,7 @@ Portal web multitenant para establecimientos (escuelas, restaurantes, pubs, hote
 - Sin router configurado, la app funciona en **modo simulado** (mantener este comportamiento)
 
 ## Tipos de establecimiento y roles
-`tenants.type` (`establishment_type`): `school`, `restaurant`, `pub`, `hotel`. Se elige en `/register-school`. Los roles disponibles dependen del tipo (`lib/roles.ts`, `ROLES_BY_TYPE`; validado en server actions):
+`tenants.type` (`establishment_type`): `school`, `restaurant`, `pub`, `hotel`. Se elige al crear el establecimiento en `/platform`. Los roles disponibles dependen del tipo (`lib/roles.ts`, `ROLES_BY_TYPE`; validado en server actions):
 | Tipo | Roles (además de `superadmin` fundador) |
 |---|---|
 | school | director, staff, teacher, student |
@@ -44,7 +44,7 @@ Helpers RLS: `current_tenant()` y `is_admin()` (ambas `security definer`).
 Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`): director 20480/10240, staff 10240/5120, teacher 10240/5120, student 2048/1024, superadmin 20480/10240.
 
 ## Flujos
-1. **/register-school**: crea tenant (con su tipo) + admin (superadmin activo). Muestra el código/slug de la escuela.
+1. **Alta de establecimiento**: la hace el dueño en `/platform` (`createTenant` → `lib/create-tenant.ts`, con deshacer probado): tenant (con su tipo) + admin (superadmin activo) con contraseña temporal mostrada una vez y el código/slug. `/register-school` y `registerSchool` están cerrados salvo `ALLOW_PUBLIC_SCHOOL_REGISTRATION=1`.
 2. **/register**: el usuario ingresa el slug, se crea `profiles` con `status = 'pending'`.
 3. **Aprobación (admin)**: pasa a `active`, asigna `role`, crea el usuario en el router y la fila en `hotspot_users`.
 3b. **Crear usuario (admin)**: desde **Usuarios**, el admin crea la cuenta ya activa (`createUser` → `lib/create-user.ts`, con pasos y deshacer probados): cuenta de acceso con contraseña aleatoria que no se entrega, perfil activo, usuario del Hotspot y registro. Muestra el usuario y la contraseña del WiFi una sola vez. El nombre de usuario es único (`lib/usernames.ts`: `ana`, `ana2`…; no usa el prefijo `g_`, reservado para invitados) y se aplica también al aprobar.
@@ -71,7 +71,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
-- `npm test` (84 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `npm test` (90 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
 - `supabase/tests/base_rls.sql`: aislamiento de las tablas originales (establecimientos, perfiles, planes, usuarios del Hotspot, consumo y credenciales del router), con pendientes y suspendidos sin datos, y escrituras prohibidas al cliente.
 - `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 
@@ -108,5 +108,5 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql`, `0009_fixed_devices.sql` y `0010_tenant_suspensions.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
-4. Abrir `/register-school` para crear el establecimiento y su administrador.
+4. Entrar a `/platform` (correo en `PLATFORM_ADMIN_EMAILS`) y crear el establecimiento y su administrador. (Para el primer arranque sin panel, `ALLOW_PUBLIC_SCHOOL_REGISTRATION=1` abre `/register-school`.)
 5. En **Ancho de banda → Conexión al MikroTik** ingresar URL, usuario y contraseña.
