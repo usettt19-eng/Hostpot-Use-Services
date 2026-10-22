@@ -146,6 +146,31 @@ export async function fetchUsage(c: RouterConfig, usernames: string[]): Promise<
   };
 }
 
+// ---- Equipos fijos: excepciones de Hotspot por MAC (no pasan por el login) ----
+
+/** Crea una excepción `bypassed` para una MAC. Devuelve el id que asigna el router. */
+export async function addBypassBinding(c: RouterConfig, mac: string, comment: string): Promise<string> {
+  const res = await rest<Record<string, string>>(c, "PUT", "/ip/hotspot/ip-binding", {
+    "mac-address": mac, type: "bypassed", comment,
+  });
+  return res[".id"];
+}
+
+/** Excepciones existentes en el router (para comprobar que siguen aplicadas). */
+export async function listIpBindings(c: RouterConfig): Promise<Set<string>> {
+  const rows = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/ip-binding");
+  return new Set(rows.map((r) => r[".id"]));
+}
+
+/** Borra una excepción. Si ya no existe en el router (404), se da por borrada. */
+export async function removeIpBinding(c: RouterConfig, id: string): Promise<void> {
+  try {
+    await rest(c, "DELETE", `/ip/hotspot/ip-binding/${encodeURIComponent(id)}`);
+  } catch (e) {
+    if (!(e instanceof Error && e.message.includes("→ 404"))) throw e;
+  }
+}
+
 // ---- Invitados (portal cautivo) ----
 
 export type HostInfo = { mac: string; authorized: boolean; bypassed: boolean; server: string };

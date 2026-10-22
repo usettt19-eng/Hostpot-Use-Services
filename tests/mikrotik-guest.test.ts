@@ -6,7 +6,8 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers, type RouterConfig,
+  addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
 // Router falso por HTTPS con certificado autofirmado: comprueba el uso de la API REST (no es un router real)
@@ -39,6 +40,10 @@ before(async () => {
       }
       if (u.pathname === "/rest/ip/hotspot/user" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*C" }));
       if (u.pathname.startsWith("/rest/ip/hotspot/user/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
+      if (u.pathname === "/rest/ip/hotspot/ip-binding" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*BIND1" }));
+      if (u.pathname === "/rest/ip/hotspot/ip-binding" && req.method === "GET") return res.end(JSON.stringify([{ ".id": "*BIND1" }]));
+      if (u.pathname === "/rest/ip/hotspot/ip-binding/*GONE" && req.method === "DELETE") { res.statusCode = 404; return res.end(JSON.stringify({ error: 404 })); }
+      if (u.pathname.startsWith("/rest/ip/hotspot/ip-binding/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
       res.statusCode = 404; res.end(JSON.stringify({ error: 404 }));
     });
   });
@@ -82,4 +87,18 @@ test("con otra huella no se envía nada al router", async () => {
   const before = seen.length;
   await assert.rejects(findHostByAddress({ ...cfg, router_cert_fingerprint: "00".repeat(32) }, "192.168.200.198"), /huella/);
   assert.equal(seen.length, before);
+});
+
+test("excepciones de equipos fijos: alta, listado y baja", async () => {
+  const id = await addBypassBinding(cfg, "AA:BB:CC:DD:EE:FF", "impresora");
+  assert.equal(id, "*BIND1");
+  const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/ip-binding").at(-1)!;
+  assert.deepEqual(put.body, { "mac-address": "AA:BB:CC:DD:EE:FF", type: "bypassed", comment: "impresora" });
+  assert.ok((await listIpBindings(cfg)).has("*BIND1"));
+  await removeIpBinding(cfg, "*BIND1");
+  assert.ok(seen.some((x) => x.method === "DELETE" && x.url === "/rest/ip/hotspot/ip-binding/*BIND1"));
+});
+
+test("borrar una excepción que ya no existe no es un error", async () => {
+  await removeIpBinding(cfg, "*GONE");
 });

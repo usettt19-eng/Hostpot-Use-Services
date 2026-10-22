@@ -61,6 +61,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - `/admin/guests` (Visitantes): estadísticas, lista, borrado (derecho de supresión, en cascada) y CSV (`/admin/guests/export`, con protección contra fórmulas). Al abrirla se sincronizan las sesiones con el router (`lib/guest-sync.ts`) y se borran los usuarios temporales terminados; no hay proceso en segundo plano todavía.
 - **Proceso periódico:** `GET /api/cron/guests-sync` (cron del servidor cada minuto, `Authorization: Bearer $CRON_SECRET`) llama a `syncAllGuestSessions`: cierra sesiones terminadas y borra usuarios temporales del router. Sin secreto (32+ caracteres) responde 401. La ruta queda fuera de la sesión en `middleware.ts`.
 - Los datos personales se cifran con AES-GCM y se buscan con `blindIndex` (`lib/crypto.ts`), derivado de `ROUTER_CRED_KEY`: **esa clave ahora también protege los datos de invitados**.
+- **Equipos fijos** (`/admin/fixed-devices`): impresoras, pantallas y equipos de control por cable. Cada uno se registra en `fixed_devices` y se aplica al Hotspot como excepción por MAC (`/ip/hotspot/ip-binding`, `type=bypassed`). Alta: primero el router, luego el registro (si falla el registro, se deshace la excepción). Baja: primero el router. La página muestra si cada excepción sigue en el router.
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
@@ -98,7 +99,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql` y `0008_access_windows.sql` (cada uno por separado, en orden).
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql` y `0009_fixed_devices.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Abrir `/register-school` para crear el establecimiento y su administrador.
