@@ -273,3 +273,14 @@ export async function testConnection(c: RouterConfig): Promise<{ board: string; 
   const r = await rest<Record<string, string>>(c, "GET", "/system/resource");
   return { board: r["board-name"] ?? "?", version: r["version"] ?? "?" };
 }
+
+export type ActiveSession = { user: string; address: string; mac: string; uptime: string; bytes: number; loginBy: string };
+
+/** Sesiones abiertas ahora en el Hotspot (una fila por dispositivo, aunque compartan usuario). */
+export async function listActiveDetails(c: RouterConfig): Promise<ActiveSession[]> {
+  const rows = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/active");
+  return rows.filter((r) => r.user).map((r) => ({
+    user: r.user, address: r.address ?? "", mac: (r["mac-address"] ?? "").toUpperCase(), uptime: r.uptime ?? "",
+    bytes: Number(r["bytes-in"] ?? 0) + Number(r["bytes-out"] ?? 0), loginBy: r["login-by"] ?? "",
+  }));
+}

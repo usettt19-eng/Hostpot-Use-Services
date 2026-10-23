@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  syncBandwidthProfile, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, syncBandwidthProfile, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -121,4 +121,11 @@ test("syncBandwidthProfile envía rate-limit y shared-users (crear y actualizar)
   assert.deepEqual(patch.body, { "rate-limit": "1024k/2048k", "shared-users": "1" });
   await syncBandwidthProfile(cfg, "Raro", 1000, 500, 99);
   assert.equal(seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!.body["shared-users"], "10");
+});
+
+test("listActiveDetails devuelve una fila por sesión con total de bytes", async () => {
+  const r = await listActiveDetails(cfg);
+  assert.equal(r.length, 2);
+  assert.deepEqual(r[0], { user: "g_abc", address: "", mac: "", uptime: "", bytes: 333, loginBy: "" });
+  assert.equal(r[1].bytes, 0);
 });
