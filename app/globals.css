@@ -7,6 +7,9 @@ body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; ba
 a { color:var(--brand); text-decoration:none; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
 .auth { max-width:400px; margin:8vh auto; padding:0 16px; }
+.authlogo { background:#fff; border-radius:10px; margin:0 0 8px; line-height:0; }
+.authlogo img { width:100%; height:auto; display:block; }
+.sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 h1 { font-size:22px; margin:0 0 12px; } h2 { font-size:17px; margin:0 0 10px; }
 label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
 input, select { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }

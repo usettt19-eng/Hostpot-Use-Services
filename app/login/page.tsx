@@ -3,15 +3,16 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { login } from "@/app/actions";
-import { SITE } from "@/lib/site";
+import AuthLogo from "@/components/AuthLogo";
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState(login, null);
   return (
     <div className="auth">
       <div className="card">
-        <h1>{SITE.name}</h1>
-        <p className="muted">Entra a tu panel.</p>
+        <AuthLogo />
+        <h1 className="sr-only">Entrar al panel</h1>
+        <p className="muted" style={{ textAlign: "center", marginTop: 0 }}>Entra a tu panel.</p>
         <form action={action}>
           <label>Correo</label>
           <input name="email" type="email" required autoComplete="email" />
