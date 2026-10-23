@@ -11,26 +11,27 @@ export default async function BandwidthPage() {
   if (!me || me.status !== "active" || !isAdminRole(me.role)) redirect("/dashboard");
 
   const { data: profiles } = await supabase
-    .from("bandwidth_profiles").select("id, role, name, download_kbps, upload_kbps").order("download_kbps", { ascending: false });
+    .from("bandwidth_profiles").select("id, role, name, download_kbps, upload_kbps, max_devices").order("download_kbps", { ascending: false });
   const tenant = await getRouterConfig(me.tenant_id);
 
   return (
     <>
       <div className="card">
         <h1>Ancho de banda por rol</h1>
-        <p className="muted">Se aplica como límite de velocidad en el perfil de usuario del Hotspot de MikroTik (en kbps).</p>
+        <p className="muted">Se aplica como límite de velocidad en el perfil de usuario del Hotspot de MikroTik (en kbps). «Dispositivos» es cuántos equipos puede usar a la vez cada usuario de ese rol; cada dispositivo recibe la velocidad completa.</p>
         <div className="scroll">
           <table className="table">
-            <thead><tr><th>Rol</th><th>Bajada (kbps)</th><th>Subida (kbps)</th><th /></tr></thead>
+            <thead><tr><th>Rol</th><th>Bajada (kbps)</th><th>Subida (kbps)</th><th>Dispositivos</th><th /></tr></thead>
             <tbody>
               {(profiles ?? []).map((p) => (
                 <tr key={p.id}>
                   <td>{ROLE_LABEL[p.role]}</td>
-                  <td colSpan={3}>
+                  <td colSpan={4}>
                     <form action={saveBandwidth} className="inline">
                       <input type="hidden" name="id" value={p.id} />
                       <input name="download_kbps" type="number" min={64} defaultValue={p.download_kbps} />
                       <input name="upload_kbps" type="number" min={64} defaultValue={p.upload_kbps} />
+                      <input name="max_devices" type="number" min={1} max={10} defaultValue={p.max_devices} title="Dispositivos a la vez por usuario" />
                       <button>Aplicar</button>
                     </form>
                   </td>

@@ -3,7 +3,7 @@ import { uniqueUsername } from "./usernames.ts";
 
 // El administrador crea una cuenta directamente. Las dependencias se inyectan para probar cada camino de fallo.
 
-export type Plan = { name: string; download_kbps: number; upload_kbps: number };
+export type Plan = { name: string; download_kbps: number; upload_kbps: number; max_devices?: number };
 
 export type CreateUserDeps = {
   roles: readonly string[];

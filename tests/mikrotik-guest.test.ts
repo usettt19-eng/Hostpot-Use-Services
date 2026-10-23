@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  syncBandwidthProfile, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -26,6 +26,11 @@ before(async () => {
       seen.push({ method: req.method!, url: req.url!, auth: req.headers.authorization, body: raw ? JSON.parse(raw) : undefined });
       res.setHeader("content-type", "application/json");
       const u = new URL(req.url!, "https://x");
+      if (u.pathname === "/rest/ip/hotspot/user/profile" && req.method === "GET") {
+        return res.end(JSON.stringify(u.searchParams.get("name") === "Existente" ? [{ ".id": "*P1", name: "Existente" }] : []));
+      }
+      if (u.pathname === "/rest/ip/hotspot/user/profile" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*P2" }));
+      if (u.pathname === "/rest/ip/hotspot/user/profile/*P1" && req.method === "PATCH") return res.end(JSON.stringify({}));
       if (u.pathname === "/rest/ip/hotspot/host") {
         return res.end(JSON.stringify([{ ".id": "*1", address: "192.168.200.198", "mac-address": "aa:bb:cc:dd:ee:ff", authorized: "false", bypassed: "false", server: "hotspot-test" }]));
       }
@@ -105,4 +110,15 @@ test("borrar una excepción que ya no existe no es un error", async () => {
 
 test("nombres de usuarios del Hotspot, en minúsculas", async () => {
   assert.deepEqual([...(await listHotspotUserNames(cfg))].sort(), ["g_abc", "srubend"]);
+});
+
+test("syncBandwidthProfile envía rate-limit y shared-users (crear y actualizar)", async () => {
+  await syncBandwidthProfile(cfg, "Personal", 10240, 5120, 2);
+  const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
+  assert.deepEqual(put.body, { name: "Personal", "rate-limit": "5120k/10240k", "shared-users": "2" });
+  await syncBandwidthProfile(cfg, "Existente", 2048, 1024);
+  const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/ip/hotspot/user/profile/*P1").pop()!;
+  assert.deepEqual(patch.body, { "rate-limit": "1024k/2048k", "shared-users": "1" });
+  await syncBandwidthProfile(cfg, "Raro", 1000, 500, 99);
+  assert.equal(seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!.body["shared-users"], "10");
 });

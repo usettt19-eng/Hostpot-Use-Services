@@ -33,7 +33,7 @@ Administradores: `superadmin`, `director`, `manager` (`ADMIN_ROLES` / `is_admin(
 |---|---|
 | `tenants` | Establecimiento: `name`, `slug` único, `type`. Las credenciales del router viven en `tenant_router_credentials` (solo service role) |
 | `profiles` | 1:1 con `auth.users`. `tenant_id`, `full_name`, `requested_role`, `role`, `status` |
-| `bandwidth_profiles` | Un perfil por (tenant, rol): `download_kbps`, `upload_kbps`. Se siembra con un trigger al crear el tenant |
+| `bandwidth_profiles` | Un perfil por (tenant, rol): `download_kbps`, `upload_kbps`, `max_devices` (dispositivos a la vez, `shared-users` en el Hotspot; personal y administradores 2, el resto 1). Se siembra con un trigger al crear el tenant |
 | `hotspot_users` | Usuario Hotspot ligado a un `profile`. `unique(tenant_id, username)`, `disabled` |
 | `usage_stats` | Historial de bytes in/out por usuario (`recorded_at`) |
 | `guests`, `guest_consents`, `guest_sessions` | Invitados del portal cautivo: personas (correo y teléfono cifrados + hash de búsqueda), consentimientos (términos con versión, promociones) y sesiones de WiFi (MAC solo como hash). Solo escribe el servidor; los admins leen por RLS |
@@ -72,7 +72,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
-- `npm test` (99 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `npm test` (100 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
 - `supabase/tests/base_rls.sql`: aislamiento de las tablas originales (establecimientos, perfiles, planes, usuarios del Hotspot, consumo y credenciales del router), con pendientes y suspendidos sin datos, y escrituras prohibidas al cliente.
 - `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 
@@ -106,7 +106,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql`, `0009_fixed_devices.sql` y `0010_tenant_suspensions.sql` (cada uno por separado, en orden).
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql`, `0009_fixed_devices.sql`, `0010_tenant_suspensions.sql` y `0011_max_devices.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Entrar a `/platform` (correo en `PLATFORM_ADMIN_EMAILS`) y crear el establecimiento y su administrador. (Para el primer arranque sin panel, `ALLOW_PUBLIC_SCHOOL_REGISTRATION=1` abre `/register-school`.)

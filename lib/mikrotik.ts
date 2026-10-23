@@ -78,17 +78,19 @@ export async function syncBandwidthProfile(
   c: RouterConfig,
   name: string,
   downloadKbps: number,
-  uploadKbps: number
+  uploadKbps: number,
+  maxDevices = 1
 ) {
   if (!isConfigured(c)) return { simulated: true };
   const rate = `${uploadKbps}k/${downloadKbps}k`;
+  const shared = String(Math.min(10, Math.max(1, Math.round(maxDevices) || 1)));
   const existing = await rest<{ ".id": string; name: string }[]>(
     c, "GET", `/ip/hotspot/user/profile?name=${encodeURIComponent(name)}`
   );
   if (existing.length) {
-    await rest(c, "PATCH", `/ip/hotspot/user/profile/${existing[0][".id"]}`, { "rate-limit": rate });
+    await rest(c, "PATCH", `/ip/hotspot/user/profile/${existing[0][".id"]}`, { "rate-limit": rate, "shared-users": shared });
   } else {
-    await rest(c, "PUT", "/ip/hotspot/user/profile", { name, "rate-limit": rate });
+    await rest(c, "PUT", "/ip/hotspot/user/profile", { name, "rate-limit": rate, "shared-users": shared });
   }
   return { simulated: false };
 }

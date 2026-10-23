@@ -88,10 +88,10 @@ export async function saveTenantRouter(_: RouterConnState, fd: FormData): Promis
   } catch (e) {
     return { warn: `Guardado, pero el router no respondió: ${e instanceof Error ? e.message : "error"}. Revisa el túnel, la URL, el usuario y la huella.` };
   }
-  const { data: plans } = await db.from("bandwidth_profiles").select("name, download_kbps, upload_kbps").eq("tenant_id", id);
+  const { data: plans } = await db.from("bandwidth_profiles").select("name, download_kbps, upload_kbps, max_devices").eq("tenant_id", id);
   let synced = 0;
   for (const p of plans ?? []) {
-    try { await syncBandwidthProfile(cfg, p.name, p.download_kbps, p.upload_kbps); synced++; } catch (e) {
+    try { await syncBandwidthProfile(cfg, p.name, p.download_kbps, p.upload_kbps, p.max_devices); synced++; } catch (e) {
       console.error("saveTenantRouter perfil:", e instanceof Error ? e.message : "error");
     }
   }
