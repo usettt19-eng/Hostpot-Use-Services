@@ -16,6 +16,13 @@ export const FAQ: FaqGroup[] = [
       { q: "¿Quién configura el router?", a: [
         "El administrador de la plataforma. Tú no ves ni cambias esa conexión. En **Ancho de banda** solo aparece si el router está conectado o no.",
       ] },
+      { q: "¿Cómo cambio la contraseña con la que entro al panel?", a: [
+        "Pulsa **Mi cuenta** (debajo de tu nombre, abajo en el menú), escribe tu contraseña actual y la nueva (mínimo 10 caracteres, con letras y números). Al cambiarla se cierran las demás sesiones de tu cuenta. Esta contraseña es distinta de la del WiFi.",
+        "Si entraste con una contraseña temporal, el panel te pide cambiarla antes de dejarte continuar.",
+      ] },
+      { q: "Olvidé la contraseña del panel", a: [
+        "En la pantalla de inicio de sesión pulsa **¿Olvidaste tu contraseña?**, escribe tu correo y te llegará un enlace para elegir una nueva. El enlace dura poco tiempo; si venció, pide otro. Revisa también el correo no deseado.",
+      ] },
       { q: "¿Qué debo hacer el primer día?", a: ["Recorre este listado antes de abrir la red al público:"], steps: [
         "Revisa la velocidad y los dispositivos por rol en **Ancho de banda**.",
         "Escribe los términos y condiciones en español y en inglés en **Diseño y horarios** y usa **Guardar y publicar**.",

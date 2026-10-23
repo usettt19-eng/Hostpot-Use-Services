@@ -11,8 +11,11 @@ export function tenantDeps(): CreateTenantDeps {
       return { id: data.id };
     },
     async deleteTenant(id) { await db.from("tenants").delete().eq("id", id); },
-    async createAuthUser(email, password) {
-      const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true });
+    async createAuthUser(email, password, opts) {
+      const { data, error } = await db.auth.admin.createUser({
+        email, password, email_confirm: true,
+        ...(opts?.mustChangePassword ? { user_metadata: { must_change_password: true } } : {}),
+      });
       if (error || !data.user) return { error: error?.message ?? "No se pudo crear la cuenta" };
       return { id: data.user.id };
     },

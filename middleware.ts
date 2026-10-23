@@ -1,9 +1,9 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC = ["/login", "/register", "/register-school"];
+const PUBLIC = ["/login", "/register", "/register-school", "/forgot-password"];
 // Portal del invitado: accesible con o sin sesión (no redirige a quien ya inició sesión)
-const OPEN = ["/w/", "/api/cron/"];
+const OPEN = ["/w/", "/api/cron/", "/auth/"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

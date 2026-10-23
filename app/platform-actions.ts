@@ -48,7 +48,7 @@ export async function createTenant(_: NewTenantState, fd: FormData): Promise<New
   const password = randomBytes(9).toString("base64url");
   const r = await createTenantWithAdmin(tenantDeps(), {
     name: String(fd.get("name") ?? ""), type: String(fd.get("type") ?? ""),
-    fullName: String(fd.get("full_name") ?? ""), email: String(fd.get("email") ?? ""), password,
+    fullName: String(fd.get("full_name") ?? ""), email: String(fd.get("email") ?? ""), password, temporaryPassword: true,
   });
   if (!r.ok) return { error: r.error };
   revalidatePath("/platform");

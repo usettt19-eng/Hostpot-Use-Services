@@ -144,3 +144,4 @@ button.danger { background:var(--bad); }
 .app .faqbody p { margin: 0 0 10px; }
 .app .faqbody ol { margin: 0 0 12px; padding-left: 22px; }
 .app .faqbody li { margin-bottom: 5px; }
+.app .who a { font-size: 12.5px; margin-top: 2px; }

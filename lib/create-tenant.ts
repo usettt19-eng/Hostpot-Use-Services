@@ -9,7 +9,7 @@ export const slugify = (s: string) =>
 export type CreateTenantDeps = {
   insertTenant(row: { name: string; slug: string; type: string }): Promise<{ id: string } | { error: string; duplicate: boolean }>;
   deleteTenant(id: string): Promise<void>;
-  createAuthUser(email: string, password: string): Promise<{ id: string } | { error: string }>;
+  createAuthUser(email: string, password: string, opts?: { mustChangePassword?: boolean }): Promise<{ id: string } | { error: string }>;
   deleteAuthUser(id: string): Promise<void>;
   insertProfile(row: { id: string; tenant_id: string; full_name: string }): Promise<string | null>; // null = bien
 };
@@ -22,7 +22,7 @@ const fail = (error: string): CreateTenantResult => ({ ok: false, error });
 
 export async function createTenantWithAdmin(
   deps: CreateTenantDeps,
-  input: { name: string; type: string; fullName: string; email: string; password: string }
+  input: { name: string; type: string; fullName: string; email: string; password: string; temporaryPassword?: boolean }
 ): Promise<CreateTenantResult> {
   const name = input.name.trim().slice(0, 100);
   const slug = slugify(name);
@@ -37,7 +37,7 @@ export async function createTenantWithAdmin(
   const t = await deps.insertTenant({ name, slug, type: input.type });
   if ("error" in t) return fail(t.duplicate ? "Ya existe un establecimiento con ese nombre" : t.error);
 
-  const u = await deps.createAuthUser(email, input.password);
+  const u = await deps.createAuthUser(email, input.password, { mustChangePassword: !!input.temporaryPassword });
   if ("error" in u) {
     await deps.deleteTenant(t.id);
     return fail(u.error);

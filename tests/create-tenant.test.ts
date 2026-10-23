@@ -57,3 +57,11 @@ test("si falla el perfil se borran la cuenta y el establecimiento", async () => 
   assert.equal(r.ok, false);
   assert.deepEqual(log, ["tenant:cafe-nandu:pub", "user:ana@x.com", "del-user:u1", "del-tenant:t1"]);
 });
+
+test("la contraseña temporal marca la cuenta para cambiarla; la elegida por la persona no", async () => {
+  const seen: unknown[] = [];
+  const { deps } = fake({ async createAuthUser(_e, _p, opts) { seen.push(opts); return { id: "u1" }; } });
+  await createTenantWithAdmin(deps, { ...input, temporaryPassword: true });
+  await createTenantWithAdmin(deps, input);
+  assert.deepEqual(seen, [{ mustChangePassword: true }, { mustChangePassword: false }]);
+});
