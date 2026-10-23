@@ -26,7 +26,8 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  if (OPEN.some((p) => path.startsWith(p))) return response;
+  // La página de inicio es pública; ella misma lleva al panel a quien ya inició sesión
+  if (path === "/" || OPEN.some((p) => path.startsWith(p))) return response;
   const isPublic = PUBLIC.some((p) => path.startsWith(p));
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
