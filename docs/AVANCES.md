@@ -116,7 +116,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
-| 2026-10-23 | Rediseño del panel: menú lateral, Inicio con contadores, tablas de Ancho de banda y Usuarios más claras | (este) |
+| 2026-10-23 | Rediseño del panel: menú lateral, Inicio con contadores, tablas de Ancho de banda y Usuarios más claras | `41c95d9` |
 | 2026-10-23 | Página de inicio pública (landing) en `/` y manual del administrador (página aparte, no está en el repositorio) | `cff003b` |
 | 2026-10-23 | Confirmado: migración 0012 aplicada en Supabase | `34d6da6` |
 | 2026-10-23 | Historial de conexiones de los usuarios del portal (`/admin/staff-history`, migración 0012, registro desde el cron) | `48d3e29` |
