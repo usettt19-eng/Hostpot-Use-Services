@@ -3,6 +3,10 @@ import Link from "next/link";
 import Image from "next/image";
 import mark from "@/assets/mark.png";
 import logo from "@/assets/logo.png";
+import shotInicio from "@/assets/shots/inicio.webp";
+import shotUsuarios from "@/assets/shots/usuarios.webp";
+import shotStats from "@/assets/shots/estadisticas.webp";
+import shotConectados from "@/assets/shots/conectados.webp";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase";
 import { SITE } from "@/lib/site";
@@ -113,6 +117,12 @@ const SOON = [
   ["Filtros de contenido", "Bloquear categorías de sitios por rol u horario."],
 ];
 
+const SHOTS = [
+  { img: shotUsuarios, t: "Usuarios", d: "Aprueba a quien se registra, suspende cuentas y entrega una clave nueva de WiFi cuando alguien la olvida.", alt: "Pantalla Usuarios del panel: cuadro de pendientes de aprobar y tabla de usuarios con sus estados y acciones" },
+  { img: shotStats, t: "Estadísticas", d: "Visitantes por día, semana o mes, separando a los nuevos de los que regresan.", alt: "Pantalla Estadísticas del panel: tarjetas con visitantes y un gráfico de barras de nuevos y recurrentes por día" },
+  { img: shotConectados, t: "Conectados ahora", d: "Quién está en tu red en este momento, con su dispositivo y cuánto lleva conectado.", alt: "Pantalla Conectados del panel: tabla con las sesiones abiertas, su rol, dirección y tiempo conectado" },
+];
+
 // Datos de ejemplo del gráfico: [nuevos, recurrentes] por día
 const BARS: [number, number][] = [[18, 8], [22, 10], [16, 12], [24, 14], [30, 16], [44, 22], [38, 26], [20, 12], [26, 13], [28, 17], [34, 19], [50, 24], [46, 30], [24, 15]];
 
@@ -197,6 +207,29 @@ export default async function Landing() {
                   <p>{a.text}</p>
                   <ul>{a.items.map((i) => <li key={i}>{i}</li>)}</ul>
                 </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="lp-section" id="como-se-ve">
+          <div className="lp-wrap">
+            <p className="lp-eyebrow">El panel</p>
+            <h2>Todo tu WiFi en una sola pantalla</h2>
+            <p className="lp-sub">Así se ve el panel que usa quien administra el local. Las capturas muestran datos de ejemplo.</p>
+            <figure className="lp-shot big">
+              <div className="lp-bar" aria-hidden="true"><i /><i /><i /></div>
+              <Image src={shotInicio} alt="Pantalla de inicio del panel: contadores de pendientes, usuarios activos, visitantes de hoy y conectados, con accesos rápidos" unoptimized sizes="(max-width: 900px) 100vw, 1080px" />
+            </figure>
+            <div className="lp-grid lp-shots">
+              {SHOTS.map((x) => (
+                <figure className="lp-shotcard" key={x.t}>
+                  <div className="lp-shot">
+                    <div className="lp-bar" aria-hidden="true"><i /><i /><i /></div>
+                    <Image src={x.img} alt={x.alt} unoptimized sizes="(max-width: 900px) 100vw, 360px" />
+                  </div>
+                  <figcaption><b>{x.t}</b><span>{x.d}</span></figcaption>
+                </figure>
               ))}
             </div>
           </div>

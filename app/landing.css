@@ -150,3 +150,15 @@
 @media (prefers-reduced-motion: no-preference) {
   .lp-btn { transition: filter .15s, border-color .15s; }
 }
+
+/* Capturas del panel */
+.lp-shot { margin: 0; border: 1px solid var(--lp-line); border-radius: 12px; overflow: hidden; background: var(--lp-surface); box-shadow: 0 18px 40px -22px rgba(11, 18, 32, .45); }
+.lp-shot.big { margin: 0 0 28px; }
+.lp-shot img { display: block; width: 100%; height: auto; }
+.lp-bar { display: flex; gap: 6px; padding: 9px 12px; background: color-mix(in srgb, var(--lp-line) 55%, var(--lp-surface)); border-bottom: 1px solid var(--lp-line); }
+.lp-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--lp-muted); opacity: .45; }
+.lp-shots { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+.lp-shotcard { margin: 0; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.lp-shotcard figcaption { display: grid; gap: 2px; }
+.lp-shotcard figcaption b { font-size: 17px; letter-spacing: -.01em; }
+.lp-shotcard figcaption span { color: var(--lp-muted); font-size: 15.5px; }

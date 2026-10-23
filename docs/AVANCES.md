@@ -75,6 +75,8 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 6. Guardar `usage_stats` con una tarea programada (hoy el consumo no tiene historial).
 8. Fase 0 de SmartWiFi: prototipo de login externo del Hotspot (ver diseño, sección C) y validar lo marcado ⚠️.
 
+- **Capturas de la landing** (`assets/shots/`): se tomaron con Playwright sobre una página temporal con datos de ejemplo (no se dejó en el repositorio porque sería pública). Si cambia el diseño del panel, hay que volver a tomarlas.
+
 ## 6. Decisiones
 **Tomadas**
 - Supabase en la nube (no el self-hosted del servidor). Subdominio `connect`.
@@ -123,6 +125,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
+| 2026-10-24 | Sección «El panel» en la landing con capturas del panel (Inicio, Usuarios, Estadísticas, Conectados) en `assets/shots/*.webp`, con datos de ejemplo | (este) |
 | 2026-10-24 | Logo en la página de inicio pública (icono en la barra superior y logo completo al pie) e icono de la pestaña del navegador (`app/icon.png`); el middleware deja pasar los archivos de imagen sin sesión | `c72c761` |
 | 2026-10-24 | Botón «Nueva clave WiFi» para restablecer la contraseña del WiFi de un usuario (migración 0013) | `3713171` |
 | 2026-10-24 | Logo de Connect Wifi en el inicio de sesión y en las pantallas de recuperar contraseña (`assets/logo.png`, `components/AuthLogo.tsx`; fondo ajustado a blanco, sobre caja blanca en modo oscuro) | `34150a4` |
