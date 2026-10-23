@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import mark from "@/assets/mark.png";
+import logo from "@/assets/logo.png";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase";
 import { SITE } from "@/lib/site";
@@ -136,9 +139,7 @@ export default async function Landing() {
         <div className="lp-wrap">
           <nav className="lp-nav" aria-label="Principal">
             <span className="lp-brand">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#3ad1b6" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <path d="M2.5 9a15 15 0 0 1 19 0" /><path d="M6 12.8a10 10 0 0 1 12 0" /><path d="M9.3 16.4a5 5 0 0 1 5.4 0" /><circle cx="12" cy="19.5" r="1.2" fill="#3ad1b6" />
-              </svg>
+              <span className="lp-mark"><Image src={mark} alt="" width={38} height={38} unoptimized /></span>
               {SITE.name}
             </span>
             <a className="lp-link" href="#para-quien">Para quién</a>
@@ -307,6 +308,7 @@ export default async function Landing() {
       </section>
 
       <footer className="lp-wrap lp-foot">
+        <span className="lp-footlogo"><Image src={logo} alt={`${SITE.name}, ${SITE.company}`} unoptimized /></span>
         <span>{SITE.name} · {SITE.company}</span>
         <span>© {new Date().getFullYear()}</span>
       </footer>

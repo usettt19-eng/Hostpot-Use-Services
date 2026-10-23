@@ -37,7 +37,10 @@
 .lp-arcs { position: absolute; right: -140px; top: -140px; width: 720px; height: 720px; opacity: .55; pointer-events: none; }
 .lp-nav { display: flex; align-items: center; gap: 24px; padding-block: 18px; position: relative; z-index: 1; }
 .lp-brand { font-weight: 700; letter-spacing: -.01em; font-size: 17px; margin-right: auto; display: flex; align-items: center; gap: 10px; }
-.lp-brand svg { width: 22px; height: 22px; flex: none; }
+.lp-mark { width: 38px; height: 38px; border-radius: 10px; background: #fff; overflow: hidden; flex: none; display: block; line-height: 0; }
+.lp-mark img { width: 100%; height: 100%; display: block; }
+.lp-footlogo { background: #fff; border-radius: 10px; width: 190px; line-height: 0; overflow: hidden; }
+.lp-footlogo img { width: 100%; height: auto; display: block; }
 .lp-nav a.lp-link { color: var(--lp-hero-muted); font-size: 14.5px; }
 .lp-nav a.lp-link:hover { color: var(--lp-hero-fg); }
 .lp-btn {
@@ -135,7 +138,7 @@
 .lp-final { background: var(--lp-hero-bg); color: var(--lp-hero-fg); padding-block: 72px; position: relative; overflow: hidden; }
 .lp-final h2 { font-size: clamp(26px, 3.6vw, 38px); letter-spacing: -.025em; line-height: 1.12; margin: 0 0 12px; max-width: 24ch; text-wrap: balance; }
 .lp-final p { color: var(--lp-hero-muted); margin: 0 0 24px; max-width: 56ch; }
-.lp-foot { padding-block: 28px; color: var(--lp-muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+.lp-foot { padding-block: 28px; color: var(--lp-muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: center; }
 
 @media (max-width: 900px) {
   .lp-hero-grid, .lp-split { grid-template-columns: minmax(0, 1fr); gap: 36px; }
