@@ -5,11 +5,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { uniqueUsername } from "@/lib/usernames";
+import { randomBytes } from "node:crypto";
+import { allow } from "@/lib/rate-limit";
+import { generateWifiPassword, validateWifiPassword } from "@/lib/wifi-password";
 import { createUserAccount } from "@/lib/create-user";
 import {
   createHotspotUser,
   deleteHotspotUser,
   setHotspotUserDisabled,
+  setHotspotUserPassword,
+  kickUserSessions,
   syncBandwidthProfile,
   isConfigured,
   listHotspotUserNames,
@@ -188,6 +193,40 @@ export async function toggleHotspot(fd: FormData) {
     .from("hotspot_users").update({ disabled }).eq("id", id).eq("tenant_id", me.tenant_id).select("username").single();
   if (hu) await setHotspotUserDisabled(tenant, hu.username, disabled).catch(console.error);
   revalidatePath("/admin/users");
+}
+
+/**
+ * El administrador pone una contraseña nueva de WiFi a un usuario (la genera el sistema o la escribe el administrador).
+ * Se cambia en el router, se cierran las sesiones abiertas de esa persona y la contraseña se muestra una sola vez.
+ */
+export async function resetWifiPassword(_: unknown, fd: FormData): Promise<{ error?: string; username?: string; password?: string }> {
+  const { supabase, me, tenant } = await requireAdmin();
+  if (!allow(`wifi-reset:${me.id}`, 20, 10 * 60_000)) return { error: "Demasiados cambios seguidos. Espera unos minutos" };
+  const id = String(fd.get("id") ?? "");
+  const typed = String(fd.get("password") ?? "");
+  if (typed) {
+    const problem = validateWifiPassword(typed);
+    if (problem) return { error: problem };
+  }
+  if (!isConfigured(tenant)) return { error: "El router de este establecimiento todavía no está configurado" };
+
+  const { data: hu } = await supabase
+    .from("hotspot_users").select("id, username").eq("id", id).eq("tenant_id", me.tenant_id).maybeSingle();
+  if (!hu) return { error: "Usuario no encontrado" };
+
+  const password = typed || generateWifiPassword(randomBytes(16));
+  try {
+    await setHotspotUserPassword(tenant, hu.username, password);
+  } catch (e) {
+    console.error("resetWifiPassword:", e instanceof Error ? e.message : "error");
+    return { error: "No se pudo cambiar la contraseña en el router. Revisa que esté encendido y conectado" };
+  }
+  await kickUserSessions(tenant, hu.username).catch((e) =>
+    console.error("resetWifiPassword sesiones:", e instanceof Error ? e.message : "error"));
+  await createAdminClient().from("hotspot_users")
+    .update({ password_reset_at: new Date().toISOString(), password_reset_by: me.id }).eq("id", hu.id);
+  revalidatePath("/admin/users");
+  return { username: hu.username, password };
 }
 
 export async function removeHotspot(fd: FormData) {

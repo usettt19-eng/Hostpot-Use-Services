@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase";
 import { setUserStatus, toggleHotspot, removeHotspot } from "@/app/actions";
 import { ApproveForm } from "./approve-form";
 import { CreateUserForm } from "./create-form";
+import { ResetWifiForm } from "./reset-wifi";
 import { rolesFor, ROLE_LABEL, isAdminRole } from "@/lib/roles";
 
 const STATUS_LABEL: Record<string, string> = { pending: "Pendiente", active: "Activo", suspended: "Suspendido" };
@@ -18,9 +19,14 @@ export default async function UsersPage() {
 
   const { data: people } = await supabase
     .from("profiles").select("id, full_name, role, requested_role, status, created_at").order("created_at", { ascending: false });
-  const { data: hotspot } = await supabase.from("hotspot_users").select("id, profile_id, username, disabled");
+  type HU = { id: string; profile_id: string; username: string; disabled: boolean; password_reset_at?: string | null };
+  // Si la migración 0013 todavía no se aplicó, se lee sin la fecha del último cambio de clave
+  const first = await supabase.from("hotspot_users").select("id, profile_id, username, disabled, password_reset_at");
+  const hotspot: HU[] = first.error
+    ? (((await supabase.from("hotspot_users").select("id, profile_id, username, disabled")).data ?? []) as HU[])
+    : ((first.data ?? []) as HU[]);
   const pending = (people ?? []).filter((p) => p.status === "pending");
-  const byProfile = new Map((hotspot ?? []).map((h) => [h.profile_id, h]));
+  const byProfile = new Map(hotspot.map((h) => [h.profile_id, h]));
 
   return (
     <>
@@ -70,7 +76,7 @@ export default async function UsersPage() {
                     </form>
                   </td>
                   <td><span className={`badge ${p.status}`}>{STATUS_LABEL[p.status]}</span></td>
-                  <td>{h ? <>{h.username}{h.disabled && " (off)"}</> : <span className="muted">—</span>}</td>
+                  <td>{h ? <>{h.username}{h.disabled && " (off)"}{h.password_reset_at && <div className="unit">Clave cambiada el {new Date(h.password_reset_at).toLocaleDateString("es", { timeZone: "America/Panama", day: "numeric", month: "short" })}</div>}</> : <span className="muted">—</span>}</td>
                   <td>
                     <div className="row">
                       {p.status === "pending" && (
@@ -95,6 +101,7 @@ export default async function UsersPage() {
                             <input type="hidden" name="disabled" value={String(!h.disabled)} />
                             <button className="ghost">{h.disabled ? "Habilitar WiFi" : "Deshabilitar WiFi"}</button>
                           </form>
+                          <ResetWifiForm id={h.id} username={h.username} />
                           <form action={removeHotspot}><input type="hidden" name="id" value={h.id} /><button className="danger">Quitar</button></form>
                         </>
                       )}

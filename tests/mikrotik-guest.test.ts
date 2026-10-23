@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, syncBandwidthProfile, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -34,7 +34,7 @@ before(async () => {
       if (u.pathname === "/rest/ip/hotspot/host") {
         return res.end(JSON.stringify([{ ".id": "*1", address: "192.168.200.198", "mac-address": "aa:bb:cc:dd:ee:ff", authorized: "false", bypassed: "false", server: "hotspot-test" }]));
       }
-      if (u.pathname === "/rest/ip/hotspot/active") return res.end(JSON.stringify([{ user: "g_abc", "bytes-in": "111", "bytes-out": "222" }, { user: "srubend" }]));
+      if (u.pathname === "/rest/ip/hotspot/active") return res.end(JSON.stringify([{ ".id": "*S1", user: "g_abc", "bytes-in": "111", "bytes-out": "222" }, { ".id": "*S2", user: "srubend" }]));
       if (u.pathname === "/rest/ip/hotspot/user" && req.method === "GET") {
         const name = u.searchParams.get("name");
         const all = [
@@ -43,6 +43,8 @@ before(async () => {
         ];
         return res.end(JSON.stringify(name ? all.filter((x) => x.name === name) : all));
       }
+      if (u.pathname === "/rest/ip/hotspot/user/*A" && req.method === "PATCH") return res.end(JSON.stringify({}));
+      if (u.pathname.startsWith("/rest/ip/hotspot/active/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
       if (u.pathname === "/rest/ip/hotspot/user" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*C" }));
       if (u.pathname.startsWith("/rest/ip/hotspot/user/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
       if (u.pathname === "/rest/ip/hotspot/ip-binding" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*BIND1" }));
@@ -128,4 +130,20 @@ test("listActiveDetails devuelve una fila por sesión con total de bytes", async
   assert.equal(r.length, 2);
   assert.deepEqual(r[0], { user: "g_abc", address: "", mac: "", uptime: "", bytes: 333, loginBy: "" });
   assert.equal(r[1].bytes, 0);
+});
+
+test("setHotspotUserPassword cambia la contraseña por id y falla si el usuario no existe", async () => {
+  await setHotspotUserPassword(cfg, "srubend", "NuevaClave9");
+  const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/ip/hotspot/user/*A").pop()!;
+  assert.deepEqual(patch.body, { password: "NuevaClave9" });
+  await assert.rejects(() => setHotspotUserPassword(cfg, "no_existe", "x12345"), /no existe/);
+});
+
+test("kickUserSessions cierra solo las sesiones de ese usuario", async () => {
+  const before = seen.filter((x) => x.method === "DELETE" && x.url.startsWith("/rest/ip/hotspot/active/")).length;
+  assert.equal(await kickUserSessions(cfg, "srubend"), 1);
+  const dels = seen.filter((x) => x.method === "DELETE" && x.url.startsWith("/rest/ip/hotspot/active/"));
+  assert.equal(dels.length - before, 1);
+  assert.equal(dels.pop()!.url, "/rest/ip/hotspot/active/*S2");
+  assert.equal(await kickUserSessions(cfg, "nadie"), 0);
 });

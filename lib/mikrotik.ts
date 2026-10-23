@@ -284,3 +284,21 @@ export async function listActiveDetails(c: RouterConfig): Promise<ActiveSession[
     bytes: Number(r["bytes-in"] ?? 0) + Number(r["bytes-out"] ?? 0), loginBy: r["login-by"] ?? "",
   }));
 }
+
+/** Cambia la contraseña de un usuario del Hotspot. Falla si el usuario no existe en el router. */
+export async function setHotspotUserPassword(c: RouterConfig, username: string, password: string) {
+  if (!isConfigured(c)) return { simulated: true };
+  const id = await findUserId(c, username);
+  if (!id) throw new Error("El usuario no existe en el router");
+  await rest(c, "PATCH", `/ip/hotspot/user/${id}`, { password });
+  return { simulated: false };
+}
+
+/** Cierra las sesiones abiertas de un usuario (para que vuelva a entrar con la contraseña nueva). Devuelve cuántas cerró. */
+export async function kickUserSessions(c: RouterConfig, username: string): Promise<number> {
+  if (!isConfigured(c)) return 0;
+  const rows = await rest<Record<string, string>[]>(c, "GET", `/ip/hotspot/active?user=${encodeURIComponent(username)}`);
+  const mine = rows.filter((r) => r.user === username && r[".id"]);
+  for (const r of mine) await rest(c, "DELETE", `/ip/hotspot/active/${r[".id"]}`);
+  return mine.length;
+}

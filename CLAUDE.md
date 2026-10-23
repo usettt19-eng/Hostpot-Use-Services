@@ -75,12 +75,13 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - Los datos personales se cifran con AES-GCM y se buscan con `blindIndex` (`lib/crypto.ts`), derivado de `ROUTER_CRED_KEY`: **esa clave ahora también protege los datos de invitados**.
 - **Acceso del personal en el portal del invitado:** sección «Soy del personal» (`components/portal/StaffLogin.tsx`) con usuario y contraseña del Hotspot; el navegador va directo al login del router (`buildLoginRedirect`). Solo se ofrece si la URL de login del Hotspot es válida (`parseLoginUrl`), y trae un enlace a `/register?school={código}`; al entrar va a la URL «Después de conectar» del portal publicado, si la hay, y si no a la web original (el registro precarga el código). Sin esto, el personal no podría entrar desde que `login.html` redirige al portal.
 - **Horarios (solo escuelas):** tabla `access_windows` (ventanas por día, hora de Panamá, `lib/schedule.ts`). Si una escuela tiene ventanas, el visitante solo se conecta dentro de una y su acceso dura hasta que cierre (`limit-uptime` = mínimo entre `session_minutes` y lo que queda de la ventana); fuera de horario `connectGuest` no crea nada y dice cuándo abre. Sin ventanas configuradas no hay restricción. Se edita en `/admin/portal`.
+- **Nueva clave WiFi** (`resetWifiPassword`, botón en Usuarios): cambia la contraseña del Hotspot en el router, cierra las sesiones del usuario y la muestra una sola vez; no se guarda (solo fecha y quién en `hotspot_users`). Es distinta de la contraseña del panel (`/account`).
 - Suspender una cuenta (`setUserStatus`) deshabilita su usuario del Hotspot; reactivarla lo habilita.
 - **Equipos fijos** (`/admin/fixed-devices`): impresoras, pantallas y equipos de control por cable. Cada uno se registra en `fixed_devices` y se aplica al Hotspot como excepción por MAC (`/ip/hotspot/ip-binding`, `type=bypassed`). Alta: primero el router, luego el registro (si falla el registro, se deshace la excepción). Baja: primero el router. La página muestra si cada excepción sigue en el router.
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
-- `npm test` (122 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `npm test` (126 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
 - `supabase/tests/base_rls.sql`: aislamiento de las tablas originales (establecimientos, perfiles, planes, usuarios del Hotspot, consumo y credenciales del router), con pendientes y suspendidos sin datos, y escrituras prohibidas al cliente.
 - `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 
@@ -114,7 +115,7 @@ El router debe ser alcanzable desde el servidor del portal (VPN o IP pública re
 
 ## Puesta en marcha
 1. Crear proyecto en Supabase y ejecutar `supabase/migrations/0001_init.sql`.
-1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql`, `0009_fixed_devices.sql`, `0010_tenant_suspensions.sql`, `0011_max_devices.sql` y `0012_staff_sessions.sql` (cada uno por separado, en orden).
+1b. Ejecutar también `0002_security.sql`, `0003_roles_enum.sql`, `0004_establishment_types.sql`, `0005_router_cert_pin.sql`, `0006_portal_customization.sql`, `0007_guests.sql`, `0008_access_windows.sql`, `0009_fixed_devices.sql`, `0010_tenant_suspensions.sql`, `0011_max_devices.sql`, `0012_staff_sessions.sql` y `0013_wifi_password_reset.sql` (cada uno por separado, en orden).
 2. Copiar `.env.example` a `.env.local` y completar claves.
 3. `npm install && npm run dev`
 4. Entrar a `/platform` (correo en `PLATFORM_ADMIN_EMAILS`) y crear el establecimiento y su administrador. (Para el primer arranque sin panel, `ALLOW_PUBLIC_SCHOOL_REGISTRATION=1` abre `/register-school`.)

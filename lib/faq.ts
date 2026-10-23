@@ -48,7 +48,12 @@ export const FAQ: FaqGroup[] = [
         "Los nombres de usuario no se repiten: si ya existe `ana`, el siguiente será `ana2`.",
       ] },
       { q: "¿Dónde veo la contraseña del WiFi de alguien?", a: [
-        "No se puede ver: se muestra una sola vez al crear o aprobar la cuenta y el sistema no la guarda. Hoy tampoco hay un botón para restablecerla; si alguien la olvida, pide ayuda al administrador de la plataforma.",
+        "No se puede ver: se muestra una sola vez al crear o aprobar la cuenta y el sistema no la guarda. Si alguien la olvidó, dale una nueva (siguiente pregunta).",
+      ] },
+      { q: "Alguien olvidó la contraseña del WiFi, ¿cómo le doy una nueva?", a: [
+        "En **Usuarios**, pulsa **Nueva clave WiFi** en la fila de esa persona. Puedes escribir la contraseña (mínimo 6 caracteres) o dejar el campo vacío para que el sistema genere una, y pulsa **Cambiar**.",
+        "El portal la cambia en el router, cierra las sesiones que la persona tuviera abiertas y te muestra la contraseña nueva **una sola vez**: anótala y entrégasela. En la tabla queda la fecha del último cambio.",
+        "Esta es la contraseña del WiFi. La del panel de administración se cambia en **Mi cuenta**.",
       ] },
       { q: "¿Cómo le quito el WiFi a alguien por un tiempo?", a: [
         "**Suspender** deja a la persona sin WiFi al instante (y **Reactivar** se lo devuelve). **Deshabilitar WiFi** corta solo el WiFi sin tocar la cuenta, y **Habilitar WiFi** lo devuelve.",
