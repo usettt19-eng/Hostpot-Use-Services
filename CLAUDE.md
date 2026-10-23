@@ -55,6 +55,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 
 ## Portal del invitado y personalización
 - **Aspecto del panel** (`app/(app)/layout.tsx`, `components/AppNav.tsx`, reglas `.app` de `app/globals.css`): menú lateral agrupado con sección activa y menú desplegable en móvil. Los estilos del panel van bajo `.app` para no tocar el portal del visitante (`/w`), la landing (`.lp`) ni el login. Los campos de una fila de tabla usan `form=` para pertenecer a su formulario.
+- `/admin/help` (Preguntas frecuentes): manual del administrador en preguntas por tema con buscador. Contenido en `lib/faq.ts`; al cambiar un nombre de pantalla o botón del panel, actualízalo (la prueba `tests/faq.test.ts` vigila los nombres del menú).
 - `/` (página de inicio pública, `app/page.tsx`): landing del servicio; `middleware.ts` la deja pasar sin sesión y ella redirige a `/dashboard` si hay sesión. Nombre y contacto en `lib/site.ts`. Solo debe afirmar lo que el servicio hace hoy.
 - `/w/{slug}`: portal público del establecimiento (con o sin sesión). Sin datos del Hotspot en la URL es una vista previa; con `mac`, `ip`, `login` y `orig` (los manda `deploy/mikrotik/login.html`) conecta al invitado.
 - `/admin/portal`: editor para admins (borrador, vista previa, publicación, historial, logo y fondo). `/preview/portal`: vista previa del borrador (solo admins, incrustable solo en el mismo sitio).
@@ -77,7 +78,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 - `/w/*` lleva CSP estricta y `X-Frame-Options: DENY` (`next.config.mjs`).
 
 ## Pruebas
-- `npm test` (113 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
+- `npm test` (115 pruebas): ajustes del portal, contraste, imágenes, idioma, utilidades y lógica del flujo de invitados (con datos falsos), cifrado y las llamadas nuevas a la API del router (contra un router falso con certificado autofirmado).
 - `supabase/tests/base_rls.sql`: aislamiento de las tablas originales (establecimientos, perfiles, planes, usuarios del Hotspot, consumo y credenciales del router), con pendientes y suspendidos sin datos, y escrituras prohibidas al cliente.
 - `supabase/tests/portal_rls.sql` y `supabase/tests/guests_rls.sql`: aislamiento entre establecimientos, permisos, publicación, restricciones y supresión. Se ejecuta con `psql` en una base **de pruebas** con las migraciones aplicadas; en un Postgres local primero se carga `supabase/tests/bootstrap_local.sql` (imita roles y `auth.uid()` de Supabase). Termina en `ROLLBACK`.
 

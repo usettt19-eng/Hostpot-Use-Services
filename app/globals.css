@@ -126,3 +126,21 @@ button.danger { background:var(--bad); }
   .app main { padding-top: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { .app .side { transition: none; } }
+
+/* Preguntas frecuentes */
+.app .faqtop input[type=search] { max-width: 520px; }
+.app .faqjump { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.app .faqjump a { padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px; font-size: 13px; color: var(--ink); }
+.app .faqjump a:hover { border-color: var(--brand); color: var(--brand); }
+.app .faqgroup { margin-bottom: 22px; scroll-margin-top: 16px; }
+.app .faqgroup > h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.app details.faq { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
+.app details.faq > summary { cursor: pointer; padding: 13px 16px; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.app details.faq > summary::-webkit-details-marker { display: none; }
+.app details.faq > summary::after { content: "+"; font-size: 20px; line-height: 1; color: var(--muted); flex: none; }
+.app details.faq[open] > summary::after { content: "–"; }
+.app details.faq[open] > summary { color: var(--brand); }
+.app .faqbody { padding: 0 16px 10px; max-width: 72ch; }
+.app .faqbody p { margin: 0 0 10px; }
+.app .faqbody ol { margin: 0 0 12px; padding-left: 22px; }
+.app .faqbody li { margin-bottom: 5px; }

@@ -39,6 +39,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       ] },
     );
   }
+  if (isAdmin) groups.push({ title: "Ayuda", items: [{ href: "/admin/help", label: "Preguntas frecuentes", icon: "help" }] });
   if (platform) groups.push({ title: "Plataforma", items: [{ href: "/platform", label: "Establecimientos", icon: "building" }] });
 
   const footer = (
