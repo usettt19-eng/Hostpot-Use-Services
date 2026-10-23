@@ -19,22 +19,45 @@ export default async function UsersPage() {
   const { data: people } = await supabase
     .from("profiles").select("id, full_name, role, requested_role, status, created_at").order("created_at", { ascending: false });
   const { data: hotspot } = await supabase.from("hotspot_users").select("id, profile_id, username, disabled");
+  const pending = (people ?? []).filter((p) => p.status === "pending");
   const byProfile = new Map((hotspot ?? []).map((h) => [h.profile_id, h]));
 
   return (
     <>
-    <CreateUserForm roles={roles} />
+    {pending.length > 0 && (
+      <div className="card" style={{ borderColor: "color-mix(in srgb, var(--warn) 55%, var(--line))" }}>
+        <h2>Pendientes de aprobar ({pending.length})</h2>
+        <p className="muted">Estas personas se registraron con el código de tu establecimiento y todavía no tienen WiFi.</p>
+        <div className="scroll">
+          <table className="table">
+            <tbody>
+              {pending.map((p) => (
+                <tr key={p.id}>
+                  <td><b>{p.full_name}</b><div className="unit">Pidió: {ROLE_LABEL[p.requested_role] ?? p.requested_role}</div></td>
+                  <td><ApproveForm id={p.id} requestedRole={p.requested_role} roles={roles} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+    <details className="fold">
+      <summary>Crear usuario</summary>
+      <div className="foldbody"><CreateUserForm roles={roles} /></div>
+    </details>
     <div className="card">
       <h1>Usuarios</h1>
+      <p className="muted">Personas con cuenta propia en tu establecimiento.</p>
       <div className="scroll">
         <table className="table">
           <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Hotspot</th><th>Acciones</th></tr></thead>
           <tbody>
-            {(people ?? []).map((p) => {
+            {(people ?? []).filter((p) => p.status !== "pending").map((p) => {
               const h = byProfile.get(p.id);
               return (
                 <tr key={p.id}>
-                  <td>{p.full_name}</td>
+                  <td><b>{p.full_name}</b></td>
                   <td>
                     <form action={setUserStatus} className="inline">
                       <input type="hidden" name="id" value={p.id} />

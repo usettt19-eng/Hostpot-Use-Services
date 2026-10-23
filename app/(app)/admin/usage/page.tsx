@@ -39,7 +39,7 @@ export default async function UsagePage() {
     <>
       <div className="card">
         <h1>Consumo</h1>
-        {usage.simulated && <p className="muted">Modo simulado: configura el router en “Ancho de banda” para ver datos reales.</p>}
+        {usage.simulated && <p className="muted">Modo simulado: el router de este establecimiento todavía no está configurado. Pide al administrador de la plataforma que lo conecte.</p>}
         {error && <p className="err">{error}</p>}
         <div className="row">
           {[...byRole.entries()].map(([role, total]) => (

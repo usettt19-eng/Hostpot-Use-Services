@@ -8,7 +8,6 @@ export function CreateUserForm({ roles }: { roles: readonly string[] }) {
   const [state, action, pending] = useActionState(createUser, null);
   return (
     <form action={action} className="card">
-      <h2>Crear usuario</h2>
       <p className="muted">La cuenta queda activa y con acceso al WiFi. Las credenciales se muestran una sola vez.</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
         <div><label>Nombre completo</label><input name="full_name" required maxLength={100} autoComplete="off" /></div>

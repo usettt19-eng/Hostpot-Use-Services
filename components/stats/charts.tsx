@@ -57,7 +57,7 @@ export function Kpi({ label, cur, prev, unit = "" }: { label: string; cur: numbe
       <div className="l">{label}</div>
       <div className="v">{cur === null ? "—" : `${nf.format(Math.round(cur))}${unit}`}</div>
       <div className={`d ${d === null ? "" : d >= 0 ? "up" : "down"}`}>
-        {d === null ? "sin base para comparar" : `${d >= 0 ? "▲" : "▼"} ${Math.abs(d)}% vs periodo anterior`}
+        {d === null ? "Sin periodo anterior" : `${d >= 0 ? "▲" : "▼"} ${Math.abs(d)}% vs periodo anterior`}
       </div>
     </div>
   );

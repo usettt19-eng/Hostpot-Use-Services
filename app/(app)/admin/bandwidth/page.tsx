@@ -25,15 +25,22 @@ export default async function BandwidthPage() {
             <tbody>
               {(profiles ?? []).map((p) => (
                 <tr key={p.id}>
-                  <td>{ROLE_LABEL[p.role]}</td>
-                  <td colSpan={4}>
-                    <form action={saveBandwidth} className="inline">
-                      <input type="hidden" name="id" value={p.id} />
-                      <input name="download_kbps" type="number" min={64} defaultValue={p.download_kbps} />
-                      <input name="upload_kbps" type="number" min={64} defaultValue={p.upload_kbps} />
-                      <input name="max_devices" type="number" min={1} max={10} defaultValue={p.max_devices} title="Dispositivos a la vez por usuario" />
-                      <button>Aplicar</button>
-                    </form>
+                  <td><b>{ROLE_LABEL[p.role]}</b></td>
+                  <td>
+                    <input form={`bw-${p.id}`} className="num" name="download_kbps" type="number" min={64} defaultValue={p.download_kbps} aria-label={`Bajada de ${ROLE_LABEL[p.role]} en kbps`} />
+                    <div className="unit">{(p.download_kbps / 1024).toFixed(1)} Mbps</div>
+                  </td>
+                  <td>
+                    <input form={`bw-${p.id}`} className="num" name="upload_kbps" type="number" min={64} defaultValue={p.upload_kbps} aria-label={`Subida de ${ROLE_LABEL[p.role]} en kbps`} />
+                    <div className="unit">{(p.upload_kbps / 1024).toFixed(1)} Mbps</div>
+                  </td>
+                  <td>
+                    <input form={`bw-${p.id}`} className="num" style={{ width: 80 }} name="max_devices" type="number" min={1} max={10} defaultValue={p.max_devices} aria-label={`Dispositivos de ${ROLE_LABEL[p.role]}`} />
+                    <div className="unit">a la vez</div>
+                  </td>
+                  <td>
+                    <form id={`bw-${p.id}`} action={saveBandwidth}><input type="hidden" name="id" value={p.id} /></form>
+                    <button form={`bw-${p.id}`}>Aplicar</button>
                   </td>
                 </tr>
               ))}

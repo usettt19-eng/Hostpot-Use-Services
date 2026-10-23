@@ -54,6 +54,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 6. **Panel de consumo**: lee `/ip/hotspot/user` (bytes-in / bytes-out) y agrega por usuario y por rol.
 
 ## Portal del invitado y personalización
+- **Aspecto del panel** (`app/(app)/layout.tsx`, `components/AppNav.tsx`, reglas `.app` de `app/globals.css`): menú lateral agrupado con sección activa y menú desplegable en móvil. Los estilos del panel van bajo `.app` para no tocar el portal del visitante (`/w`), la landing (`.lp`) ni el login. Los campos de una fila de tabla usan `form=` para pertenecer a su formulario.
 - `/` (página de inicio pública, `app/page.tsx`): landing del servicio; `middleware.ts` la deja pasar sin sesión y ella redirige a `/dashboard` si hay sesión. Nombre y contacto en `lib/site.ts`. Solo debe afirmar lo que el servicio hace hoy.
 - `/w/{slug}`: portal público del establecimiento (con o sin sesión). Sin datos del Hotspot en la URL es una vista previa; con `mac`, `ip`, `login` y `orig` (los manda `deploy/mikrotik/login.html`) conecta al invitado.
 - `/admin/portal`: editor para admins (borrador, vista previa, publicación, historial, logo y fondo). `/preview/portal`: vista previa del borrador (solo admins, incrustable solo en el mismo sitio).
