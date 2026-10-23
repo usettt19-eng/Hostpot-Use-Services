@@ -110,7 +110,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
-| 2026-10-23 | Confirmado: migración 0011 aplicada en Supabase | (este) |
+| 2026-10-23 | Confirmado: migración 0011 aplicada en Supabase | `18b4a3b` |
 | 2026-10-23 | Personal con 2 dispositivos: `max_devices` por rol (migración 0011) y `shared-users` en el perfil del Hotspot | `f2fd718` |
 | 2026-10-22 | Se quita a los administradores el formulario de conexión al router (cierra el riesgo de SSRF); `saveRouter` eliminado y la pantalla Ancho de banda solo muestra el estado | `13b4c74` |
 | 2026-10-22 | El dueño guarda y prueba la conexión del router de cada establecimiento desde `/platform/router/{id}` | `f905f12` |
