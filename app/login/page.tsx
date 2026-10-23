@@ -3,13 +3,15 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { login } from "@/app/actions";
+import { SITE } from "@/lib/site";
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState(login, null);
   return (
     <div className="auth">
       <div className="card">
-        <h1>Portal de Red Escolar</h1>
+        <h1>{SITE.name}</h1>
+        <p className="muted">Entra a tu panel.</p>
         <form action={action}>
           <label>Correo</label>
           <input name="email" type="email" required autoComplete="email" />

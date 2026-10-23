@@ -1,7 +1,8 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import { SITE } from "@/lib/site";
 
-export const metadata = { title: "Portal de Red WiFi", description: "Administración de ancho de banda MikroTik multi-establecimiento" };
+export const metadata = { title: SITE.name, description: "Portal de bienvenida, usuarios y visitantes de tu red WiFi" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
