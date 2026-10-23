@@ -52,7 +52,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Pruebas | `npm test` (113), `supabase/tests/portal_rls.sql` | Pasan |
 
 ## 5. Pendientes (por prioridad)
-00000. **Aplicar la migración 0012 (`staff_sessions`)** y comprobar que la respuesta del cron incluya `"staff"`; avisar al personal del registro de conexiones en los términos de uso.
+00000. La migración 0012 (`staff_sessions`) está aplicada: falta comprobar que la respuesta del cron incluya `"staff"`; avisar al personal del registro de conexiones en los términos de uso.
 000. **Teléfonos:** tras entrar como visitante, el móvil no llega a la página «Después de conectar»: el asistente de portal cautivo del teléfono se cierra solo al detectar internet. Pendiente: probar en iOS/Android y decidir (página de éxito propia o aceptar el comportamiento).
 00. **Aplicar la 0010 (`tenant_suspensions`) y poner `PLATFORM_ADMIN_EMAILS` en el `.env` del servidor** antes de usar `/platform`. Las migraciones 0008 y 0009 están aplicadas (la tabla `access_windows` ya existía al repetir la 0008). Probar equipos fijos en el router real. Probar horarios con un alumno y probar horarios con un alumno en la red de pruebas. La migración 0011 (`max_devices`) está aplicada: falta pulsar **Aplicar** en Ancho de banda (o «Guardar y probar» en `/platform`) para subir `shared-users` al router, y probar con dos dispositivos del personal. Separar equipos fijos (impresoras, pantallas) con excepción por MAC o red propia.
 0. El acceso de invitados funciona en el router de prueba. Falta: comprobar **Visitantes** y las sesiones `g_…`, probar iOS y Android, y validar los puntos ⚠️ restantes de `docs/ROUTER-PRUEBA.md` sección 8 (walled garden y `login.html`). Validar los puntos ⚠️: variables `$(…-esc)` del `login.html`, walled garden por HTTPS, redirección por GET en iOS/Android.
@@ -113,6 +113,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
+| 2026-10-23 | Confirmado: migración 0012 aplicada en Supabase | (este) |
 | 2026-10-23 | Historial de conexiones de los usuarios del portal (`/admin/staff-history`, migración 0012, registro desde el cron) | `48d3e29` |
 | 2026-10-23 | Pantalla «Conectados ahora» (`/admin/connected`) con sesiones activas del Hotspot | `b034dbc` |
 | 2026-10-23 | Confirmado: migración 0011 aplicada en Supabase | `18b4a3b` |
