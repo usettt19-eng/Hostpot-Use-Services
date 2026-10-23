@@ -3,6 +3,7 @@ import { requireAdminTenant } from "@/lib/portal";
 import { isConfigured, listActiveDetails, formatBytes, type RouterConfig } from "@/lib/mikrotik";
 import { classify, counts, type Active, type PortalUser } from "@/lib/connected";
 import { ROLE_LABEL } from "@/lib/roles";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function ConnectedPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <meta httpEquiv="refresh" content="30" />
+      <AutoRefresh seconds={30} />
       <div className="card">
         <h1>Conectados ahora</h1>
         <p className="muted">Sesiones abiertas en el Hotspot en este momento. La página se actualiza sola cada 30 segundos.</p>

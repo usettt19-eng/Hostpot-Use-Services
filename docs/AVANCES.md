@@ -95,6 +95,8 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 - Los mensajes `_sender is not defined` en la consola del navegador vienen de una extensión, no del portal.
 - Desde el entorno de Claude no se llega al servidor ni al router: los comandos los ejecuta el usuario y pega la salida.
 
+- **No usar `<meta http-equiv="refresh">` en pantallas del panel:** con la navegación del cliente la etiqueta queda en la página y recarga cualquier sección. Para refrescar datos, `components/AutoRefresh.tsx`.
+
 ## 8. Cómo desplegar y probar
 ```bash
 # Servidor
@@ -117,6 +119,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 | 2026-10-22 | Migración 0009 (`fixed_devices`) aplicada en Supabase según el usuario; falta comprobar la tabla y probar un equipo fijo en el router | `d51dd04` |
 | 2026-10-22 | `/register` vuelve a renderizar el formulario en el servidor con el código precargado desde `?school=` (la versión con `Suspense` solo lo mostraba tras JavaScript). Comprobado con `curl` en local | `a0188ba` |
 | 2026-10-22 | Portal del invitado: sección «Soy del personal» (usuario y contraseña del Hotspot, directo al login del router) y enlace al registro con el código precargado. Probado con navegador contra simuladores; pendiente en el router real | `792b34b` |
+| 2026-10-23 | Arreglo: **Conectados** recargaba la página entera cada 30 s con una etiqueta `meta refresh` que seguía activa al cambiar de sección (borraba formularios y devolvía a Conectados). Ahora usa `components/AutoRefresh.tsx` (`router.refresh()` solo mientras la pantalla está abierta y visible) | (este) |
 | 2026-10-23 | Sección «Preguntas frecuentes» dentro del panel (`/admin/help`) con el manual del administrador y buscador | `43df9f5` |
 | 2026-10-23 | Rediseño del panel: menú lateral, Inicio con contadores, tablas de Ancho de banda y Usuarios más claras | `41c95d9` |
 | 2026-10-23 | Página de inicio pública (landing) en `/` y manual del administrador (página aparte, no está en el repositorio) | `cff003b` |
