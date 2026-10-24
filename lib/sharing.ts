@@ -1,5 +1,5 @@
-import { createAdminClient } from "@/lib/supabase";
-import { ensureParentQueue, hasSharing, removeStaleFixedQueues, syncBandwidthProfile, upsertFixedQueue, upsertPoolQueue, type RouterConfig } from "@/lib/mikrotik";
+import { createAdminClient, getRouterConfig } from "@/lib/supabase";
+import { ensureParentFirst, ensureParentQueue, hasSharing, removeStaleFixedQueues, syncBandwidthProfile, upsertFixedQueue, upsertPoolQueue, type RouterConfig } from "@/lib/mikrotik";
 import { FIXED_POOL, fixedQueueName, poolGuarantee, poolTarget, splitFixed } from "@/lib/queues";
 import { selectPlans, tuningOf } from "@/lib/plans";
 
@@ -79,4 +79,24 @@ export async function syncFixedQueues(tenantId: string, cfg: RouterConfig): Prom
   await removeStaleFixedQueues(cfg, keep).catch((e) =>
     console.error("syncFixedQueues limpieza:", e instanceof Error ? e.message : "error"));
   return { individual: okIndividual, pool: okPool, withoutIp, errors };
+}
+
+/**
+ * Mantiene `PORTAL-ROOT` de primera en el router de cada establecimiento con reparto configurado. Lo llama el cron cada minuto:
+ * al reiniciar el router o el Hotspot, la cola general puede volver a quedar delante.
+ */
+export async function keepParentFirstAll(): Promise<{ checked: number; moved: number }> {
+  const db = createAdminClient();
+  const { data, error } = await db.from("tenant_router_credentials").select("tenant_id").not("total_down_kbps", "is", null);
+  if (error) return { checked: 0, moved: 0 }; // migración 0014 sin aplicar
+  let moved = 0;
+  for (const r of data ?? []) {
+    try {
+      const cfg = await getRouterConfig(r.tenant_id as string);
+      if (await ensureParentFirst(cfg)) moved++;
+    } catch (e) {
+      console.error("keepParentFirst:", e instanceof Error ? e.message : "error");
+    }
+  }
+  return { checked: data?.length ?? 0, moved };
 }

@@ -1,6 +1,7 @@
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { syncAllGuestSessions } from "@/lib/guest-sync";
 import { syncAllStaffSessions } from "@/lib/staff-history";
+import { keepParentFirstAll } from "@/lib/sharing";
 
 export const dynamic = "force-dynamic";
 
@@ -23,5 +24,10 @@ export async function GET(req: Request) {
     console.error("staff-sync:", e instanceof Error ? e.message : "error");
     return null;
   });
-  return Response.json({ ok: true, ...result, staff }, { headers: { "Cache-Control": "no-store" } });
+  // Mantiene el reparto de velocidad efectivo si el router reordenó las colas
+  const queues = await keepParentFirstAll().catch((e) => {
+    console.error("queues-order:", e instanceof Error ? e.message : "error");
+    return null;
+  });
+  return Response.json({ ok: true, ...result, staff, queues }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, ensureParentFirst, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -38,13 +38,17 @@ before(async () => {
       if (u.pathname === "/rest/ip/hotspot/user/profile/*P1" && req.method === "PATCH") return res.end(JSON.stringify({}));
       if (u.pathname === "/rest/queue/simple" && req.method === "GET") {
         const n = u.searchParams.get("name");
-        if (n === null) return res.end(JSON.stringify([{ ".id": "*Q1", name: "PORTAL-ROOT" }, { ".id": "*Q7", name: "FIXED-OLD" }, { ".id": "*Q8", name: "FIXED-POOL" }, { ".id": "*Q6", name: "ROOT" }]));
+        if (n === null) {
+          const list = [{ ".id": "*Q1", name: "PORTAL-ROOT" }, { ".id": "*Q7", name: "FIXED-OLD" }, { ".id": "*Q8", name: "FIXED-POOL" }, { ".id": "*Q6", name: "ROOT" }];
+          return res.end(JSON.stringify((globalThis as { __hsFirst?: boolean }).__hsFirst ? [{ ".id": "*H1", name: "hs-<hotspot-test>" }, ...list] : list));
+        }
         return res.end(JSON.stringify(n === "PORTAL-ROOT" || n === "FIXED-AA:BB:CC:DD:EE:01" ? [{ ".id": "*Q1", name: n }] : []));
       }
       if (u.pathname === "/rest/queue/type" && req.method === "GET") return res.end(JSON.stringify(u.searchParams.get("name") === "portal-pcq-up" ? [{ ".id": "*T1", name: "portal-pcq-up" }] : []));
       if (u.pathname === "/rest/queue/type" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*T9" }));
       if (u.pathname === "/rest/queue/type/*T1" && req.method === "PATCH") return res.end("{}");
       if (u.pathname.startsWith("/rest/queue/simple/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
+      if (u.pathname === "/rest/queue/simple/move" && req.method === "POST") return res.end("[]");
       if (u.pathname === "/rest/queue/simple" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*Q9" }));
       if (u.pathname === "/rest/queue/simple/*Q1" && req.method === "PATCH") return res.end("{}");
       if (u.pathname === "/rest/ip/hotspot/host") {
@@ -175,6 +179,19 @@ test("con reparto configurado, el perfil cuelga de la cola padre y lleva mínimo
   await syncBandwidthProfile(cfg, "Plano", 10240, 5120, { maxDevices: 1, minKbps: 1536 });
   const plain = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
   assert.deepEqual(plain.body, { name: "Plano", "rate-limit": "5120k/10240k", "shared-users": "1" });
+});
+
+test("PORTAL-ROOT se mueve a la primera posición solo si la cola general del Hotspot va delante", async () => {
+  const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24" };
+  assert.equal(await ensureParentFirst(shared), false);
+  assert.ok(!seen.some((x) => x.url === "/rest/queue/simple/move"));
+  (globalThis as { __hsFirst?: boolean }).__hsFirst = true;
+  try {
+    assert.equal(await ensureParentFirst(shared), true);
+    const mv = seen.filter((x) => x.url === "/rest/queue/simple/move").pop()!;
+    assert.equal(mv.method, "POST");
+    assert.deepEqual(mv.body, { numbers: "*Q1", destination: "*H1" });
+  } finally { (globalThis as { __hsFirst?: boolean }).__hsFirst = false; }
 });
 
 test("ensureParentQueue crea o actualiza PORTAL-ROOT con el internet contratado y exige la configuración", async () => {

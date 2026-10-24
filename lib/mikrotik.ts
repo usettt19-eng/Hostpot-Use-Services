@@ -158,7 +158,24 @@ export async function ensureParentQueue(c: RouterConfig) {
   const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/simple?name=${encodeURIComponent(PARENT_QUEUE)}`);
   if (found.length) await rest(c, "PATCH", `/queue/simple/${found[0][".id"]}`, body);
   else await rest(c, "PUT", "/queue/simple", { name: PARENT_QUEUE, ...body });
+  await ensureParentFirst(c);
   return { simulated: false };
+}
+
+/**
+ * Deja `PORTAL-ROOT` como primera cola de la lista. RouterOS atiende las colas de primer nivel en orden y la cola general del
+ * Hotspot (`hs-<servidor>`, dinámica, apunta a toda la interfaz) se queda con todo el tráfico si va antes: las colas que cuelgan de
+ * `PORTAL-ROOT` (usuarios, visitantes, equipos fijos) no recibirían ni un byte y nadie quedaría limitado. Dato del router real (7.12).
+ * Devuelve true si tuvo que moverla.
+ */
+export async function ensureParentFirst(c: RouterConfig): Promise<boolean> {
+  if (!isConfigured(c) || !hasSharing(c)) return false;
+  const all = await rest<{ ".id": string; name?: string }[]>(c, "GET", "/queue/simple");
+  const first = all[0];
+  const mine = all.find((q) => q.name === PARENT_QUEUE);
+  if (!first || !mine || first[".id"] === mine[".id"]) return false;
+  await rest(c, "POST", "/queue/simple/move", { numbers: mine[".id"], destination: first[".id"] });
+  return true;
 }
 
 export type FixedQueueSpec = { mac: string; ip: string; downKbps: number; upKbps: number; minKbps: number };
