@@ -28,6 +28,9 @@ Referencia única de cómo debe quedar un router. Estado: **verificada en el rou
 - Las colas y listas del portal no tocan lo ajeno: solo `PORTAL-ROOT`, `FIXED-*`, y entradas de lista con comentario «Portal: …».
 - La IP de un equipo fijo sin IP escrita se obtiene por su MAC (hosts del Hotspot, DHCP, ARP).
 
+## Reparto verificado
+En el router de prueba, con varios equipos descargando a la vez: las colas de usuarios, visitantes y equipos fijos cuentan tráfico y descartan paquetes al pasar su tope, y `FIXED-POOL` reparte con PCQ (`pcq-queues` activos). Sin medir todavía: el mínimo garantizado por dispositivo con la línea saturada (requiere ver las tasas de cada cola a la vez durante la prueba).
+
 ## Aislamiento de visitantes
 Bloque «Aislar a los visitantes» del script: `use-ip-firewall=yes`, lista `redes-privadas` y tres reglas (visitantes → equipos fijos, visitantes → redes privadas, visitantes → puertos de administración del router).
 - Verificado en el router de prueba: las tres reglas descartan paquetes (`forward` hacia equipos fijos y hacia redes privadas; `input` hacia los puertos de administración, con la regla puesta al final de la lista, sin moverla).
