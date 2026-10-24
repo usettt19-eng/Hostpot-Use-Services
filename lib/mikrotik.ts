@@ -1,6 +1,7 @@
 // Cliente RouterOS v7 REST (https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API)
 import https from "node:https";
 import type { TLSSocket } from "node:tls";
+import { PARENT_QUEUE, buildRateLimit, fixedQueueName } from "./queues.ts";
 
 // Si el tenant no tiene router configurado, opera en modo simulado (no falla, devuelve datos de ejemplo).
 
@@ -10,7 +11,14 @@ export type RouterConfig = {
   router_password: string | null;
   /** SHA-256 del certificado del router (hex, con o sin ":"). Si se define, se fija (pinning) en lugar de validar la cadena. */
   router_cert_fingerprint?: string | null;
+  /** Internet contratado y red del Hotspot (kbps / CIDR). Si faltan, no hay reparto: todo funciona como antes. */
+  total_down_kbps?: number | null;
+  total_up_kbps?: number | null;
+  hotspot_network?: string | null;
 };
+
+/** ¿Este establecimiento tiene configurado el reparto del ancho de banda? */
+export const hasSharing = (c: RouterConfig) => !!(c.total_down_kbps && c.total_up_kbps && c.hotspot_network);
 
 export type RouterUserUsage = { name: string; bytesIn: number; bytesOut: number; disabled: boolean };
 
@@ -74,25 +82,86 @@ function rest<T>(c: RouterConfig, method: string, path: string, body?: unknown):
 }
 
 /** Asegura un user-profile de Hotspot con límite de velocidad "subida/bajada" (ej. 1024k/2048k). */
+export type ProfileTuning = { maxDevices?: number; minKbps?: number; burstKbps?: number };
+
+/**
+ * Asegura un user-profile de Hotspot con su límite de velocidad y dispositivos. Con el reparto configurado, también
+ * lo cuelga de la cola padre (para que los clientes compartan el internet) y le añade mínimo garantizado y ráfaga.
+ */
 export async function syncBandwidthProfile(
   c: RouterConfig,
   name: string,
   downloadKbps: number,
   uploadKbps: number,
-  maxDevices = 1
+  tuning: ProfileTuning = {}
 ) {
   if (!isConfigured(c)) return { simulated: true };
-  const rate = `${uploadKbps}k/${downloadKbps}k`;
-  const shared = String(Math.min(10, Math.max(1, Math.round(maxDevices) || 1)));
+  const sharing = hasSharing(c);
+  const rate = buildRateLimit({
+    downloadKbps, uploadKbps,
+    minKbps: sharing ? tuning.minKbps : 0,
+    burstKbps: sharing ? tuning.burstKbps : 0,
+  });
+  const shared = String(Math.min(10, Math.max(1, Math.round(tuning.maxDevices ?? 1) || 1)));
+  const body: Record<string, string> = { "rate-limit": rate, "shared-users": shared, ...(sharing ? { "parent-queue": PARENT_QUEUE } : {}) };
   const existing = await rest<{ ".id": string; name: string }[]>(
     c, "GET", `/ip/hotspot/user/profile?name=${encodeURIComponent(name)}`
   );
   if (existing.length) {
-    await rest(c, "PATCH", `/ip/hotspot/user/profile/${existing[0][".id"]}`, { "rate-limit": rate, "shared-users": shared });
+    await rest(c, "PATCH", `/ip/hotspot/user/profile/${existing[0][".id"]}`, body);
   } else {
-    await rest(c, "PUT", "/ip/hotspot/user/profile", { name, "rate-limit": rate, "shared-users": shared });
+    await rest(c, "PUT", "/ip/hotspot/user/profile", { name, ...body });
   }
   return { simulated: false };
+}
+
+/** Crea o actualiza la cola padre con el internet contratado. Va antes que los perfiles que cuelgan de ella. */
+export async function ensureParentQueue(c: RouterConfig) {
+  if (!isConfigured(c)) return { simulated: true };
+  if (!hasSharing(c)) throw new Error("Falta configurar el internet contratado y la red del WiFi");
+  const body = {
+    target: c.hotspot_network!,
+    "max-limit": `${c.total_up_kbps}k/${c.total_down_kbps}k`,
+    comment: "Portal: reparto del ancho de banda del WiFi",
+  };
+  const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/simple?name=${encodeURIComponent(PARENT_QUEUE)}`);
+  if (found.length) await rest(c, "PATCH", `/queue/simple/${found[0][".id"]}`, body);
+  else await rest(c, "PUT", "/queue/simple", { name: PARENT_QUEUE, ...body });
+  return { simulated: false };
+}
+
+export type FixedQueueSpec = { mac: string; ip: string; downKbps: number; upKbps: number; minKbps: number };
+
+/** Cola propia de un equipo fijo (exento del Hotspot), colgada de la cola padre. Requiere IP fija. */
+export async function upsertFixedQueue(c: RouterConfig, q: FixedQueueSpec) {
+  if (!isConfigured(c) || !hasSharing(c)) return { simulated: true };
+  const name = fixedQueueName(q.mac);
+  // 0 = sin tope propio (sigue limitado por el padre); el mínimo nunca supera un tope que sí exista
+  const caps = [q.downKbps, q.upKbps].filter((n) => n > 0);
+  const min = caps.length ? Math.min(q.minKbps, ...caps) : q.minKbps;
+  const body = {
+    target: `${q.ip}/32`,
+    "max-limit": `${Math.max(0, q.upKbps)}k/${Math.max(0, q.downKbps)}k`,
+    "limit-at": `${Math.max(0, min)}k/${Math.max(0, min)}k`,
+    parent: PARENT_QUEUE,
+    comment: "Portal: equipo fijo",
+  };
+  const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/simple?name=${encodeURIComponent(name)}`);
+  if (found.length) await rest(c, "PATCH", `/queue/simple/${found[0][".id"]}`, body);
+  else await rest(c, "PUT", "/queue/simple", { name, ...body });
+  return { simulated: false };
+}
+
+export async function removeFixedQueue(c: RouterConfig, mac: string) {
+  if (!isConfigured(c)) return;
+  const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/simple?name=${encodeURIComponent(fixedQueueName(mac))}`);
+  for (const f of found) await rest(c, "DELETE", `/queue/simple/${f[".id"]}`);
+}
+
+/** Nombres de las colas de equipos fijos que existen en el router (para mostrar si siguen aplicadas). */
+export async function listFixedQueueNames(c: RouterConfig): Promise<Set<string>> {
+  const all = await rest<Record<string, string>[]>(c, "GET", "/queue/simple");
+  return new Set(all.map((q) => q.name).filter((n) => n?.startsWith("FIXED-")));
 }
 
 export async function createHotspotUser(c: RouterConfig, username: string, password: string, profileName: string) {

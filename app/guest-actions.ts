@@ -12,6 +12,7 @@ import { DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 import { pickLocale } from "@/lib/portal-settings";
 import { minutesOpenLeft, nextOpeningText, type Window } from "@/lib/schedule";
 import { allow } from "@/lib/rate-limit";
+import { selectPlans, tuningOf } from "@/lib/plans";
 import { isTenantSuspended } from "@/lib/tenant-status";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean } | null;
@@ -82,20 +83,21 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
   const locale = pickLocale(s(fd, "locale", 2), null, settings.default_locale);
 
   const cfg = await getRouterConfig(tenant.id);
-  const router: RouterApi | null = isConfigured(cfg)
-    ? {
-        findHost: (ip) => findHostByAddress(cfg, ip),
-        ensureProfile: async (name, d, u) => { await syncBandwidthProfile(cfg, name, d, u); },
-        createGuestUser: (u) => createGuestUser(cfg, u),
-      }
-    : null;
 
   // Plan de red del invitado: el perfil del rol de menor privilegio del tipo de establecimiento
   const role = DEFAULT_ROLE[tenant.type as EstablishmentType] ?? "student";
-  const { data: plan } = await createAdminClient()
-    .from("bandwidth_profiles").select("name, download_kbps, upload_kbps")
-    .eq("tenant_id", tenant.id).eq("role", role).maybeSingle();
+  const [plan] = await selectPlans((cols) => createAdminClient()
+    .from("bandwidth_profiles").select(cols).eq("tenant_id", tenant.id).eq("role", role));
   if (!plan) return { error: "Este local no tiene un plan de red configurado" };
+
+  const router: RouterApi | null = isConfigured(cfg)
+    ? {
+        findHost: (ip) => findHostByAddress(cfg, ip),
+        // Se reenvían los dispositivos, el mínimo y la ráfaga del plan para no pisar lo que configuró el administrador
+        ensureProfile: async (name, d, u) => { await syncBandwidthProfile(cfg, name, d, u, tuningOf(plan)); },
+        createGuestUser: (u) => createGuestUser(cfg, u),
+      }
+    : null;
 
   // Escuelas: el acceso del visitante sigue el horario configurado (si lo hay)
   let schedule: { openLeft: number | null; nextText: string | null } | undefined;

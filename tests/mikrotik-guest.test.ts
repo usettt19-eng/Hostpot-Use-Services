@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, upsertFixedQueue, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -31,6 +31,12 @@ before(async () => {
       }
       if (u.pathname === "/rest/ip/hotspot/user/profile" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*P2" }));
       if (u.pathname === "/rest/ip/hotspot/user/profile/*P1" && req.method === "PATCH") return res.end(JSON.stringify({}));
+      if (u.pathname === "/rest/queue/simple" && req.method === "GET") {
+        const n = u.searchParams.get("name");
+        return res.end(JSON.stringify(n === "PORTAL-ROOT" || n === "FIXED-AA:BB:CC:DD:EE:01" ? [{ ".id": "*Q1", name: n }] : []));
+      }
+      if (u.pathname === "/rest/queue/simple" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*Q9" }));
+      if (u.pathname === "/rest/queue/simple/*Q1" && (req.method === "PATCH" || req.method === "DELETE")) { res.statusCode = req.method === "DELETE" ? 204 : 200; return res.end(req.method === "DELETE" ? undefined : "{}"); }
       if (u.pathname === "/rest/ip/hotspot/host") {
         return res.end(JSON.stringify([{ ".id": "*1", address: "192.168.200.198", "mac-address": "aa:bb:cc:dd:ee:ff", authorized: "false", bypassed: "false", server: "hotspot-test" }]));
       }
@@ -115,13 +121,13 @@ test("nombres de usuarios del Hotspot, en minúsculas", async () => {
 });
 
 test("syncBandwidthProfile envía rate-limit y shared-users (crear y actualizar)", async () => {
-  await syncBandwidthProfile(cfg, "Personal", 10240, 5120, 2);
+  await syncBandwidthProfile(cfg, "Personal", 10240, 5120, { maxDevices: 2 });
   const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
   assert.deepEqual(put.body, { name: "Personal", "rate-limit": "5120k/10240k", "shared-users": "2" });
   await syncBandwidthProfile(cfg, "Existente", 2048, 1024);
   const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/ip/hotspot/user/profile/*P1").pop()!;
   assert.deepEqual(patch.body, { "rate-limit": "1024k/2048k", "shared-users": "1" });
-  await syncBandwidthProfile(cfg, "Raro", 1000, 500, 99);
+  await syncBandwidthProfile(cfg, "Raro", 1000, 500, { maxDevices: 99 });
   assert.equal(seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!.body["shared-users"], "10");
 });
 
@@ -146,4 +152,44 @@ test("kickUserSessions cierra solo las sesiones de ese usuario", async () => {
   assert.equal(dels.length - before, 1);
   assert.equal(dels.pop()!.url, "/rest/ip/hotspot/active/*S2");
   assert.equal(await kickUserSessions(cfg, "nadie"), 0);
+});
+
+test("con reparto configurado, el perfil cuelga de la cola padre y lleva mínimo y ráfaga", async () => {
+  const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24" };
+  await syncBandwidthProfile(shared, "Personal", 10240, 5120, { maxDevices: 2, minKbps: 1536, burstKbps: 0 });
+  const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
+  assert.deepEqual(put.body, {
+    name: "Personal", "rate-limit": "5120k/10240k 5120k/10240k 5120k/10240k 1s/1s 8 1536k/1536k", "shared-users": "2", "parent-queue": "PORTAL-ROOT",
+  });
+  // sin reparto: nada de padre ni mínimo, aunque el perfil los tenga
+  await syncBandwidthProfile(cfg, "Plano", 10240, 5120, { maxDevices: 1, minKbps: 1536 });
+  const plain = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
+  assert.deepEqual(plain.body, { name: "Plano", "rate-limit": "5120k/10240k", "shared-users": "1" });
+});
+
+test("ensureParentQueue crea o actualiza PORTAL-ROOT con el internet contratado y exige la configuración", async () => {
+  await assert.rejects(() => ensureParentQueue(cfg), /Falta configurar/);
+  const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 25600, hotspot_network: "192.168.200.0/24" };
+  await ensureParentQueue(shared);
+  const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/queue/simple/*Q1").pop()!;
+  assert.equal(patch.body.target, "192.168.200.0/24");
+  assert.equal(patch.body["max-limit"], "25600k/51200k");
+});
+
+test("equipos fijos: cola propia colgada del padre, con tope opcional y garantía; se puede quitar", async () => {
+  const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24" };
+  await upsertFixedQueue(shared, { mac: "AA:BB:CC:DD:EE:02", ip: "192.168.200.201", downKbps: 4096, upKbps: 1024, minKbps: 512 });
+  const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/queue/simple").pop()!;
+  assert.deepEqual(put.body, {
+    name: "FIXED-AA:BB:CC:DD:EE:02", target: "192.168.200.201/32", "max-limit": "1024k/4096k", "limit-at": "512k/512k", parent: "PORTAL-ROOT", comment: "Portal: equipo fijo",
+  });
+  await upsertFixedQueue(shared, { mac: "AA:BB:CC:DD:EE:03", ip: "192.168.200.202", downKbps: 0, upKbps: 0, minKbps: 512 });
+  const open = seen.filter((x) => x.method === "PUT" && x.url === "/rest/queue/simple").pop()!;
+  assert.equal(open.body["max-limit"], "0k/0k"); // sin tope propio
+  assert.equal(open.body["limit-at"], "512k/512k");
+  await upsertFixedQueue(shared, { mac: "AA:BB:CC:DD:EE:01", ip: "192.168.200.200", downKbps: 100, upKbps: 100, minKbps: 512 });
+  const upd = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/queue/simple/*Q1").pop()!;
+  assert.equal(upd.body["limit-at"], "100k/100k"); // la garantía no supera el tope
+  await removeFixedQueue(shared, "AA:BB:CC:DD:EE:01");
+  assert.ok(seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q1"));
 });

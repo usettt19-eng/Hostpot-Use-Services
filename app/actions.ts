@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { uniqueUsername } from "@/lib/usernames";
+import { selectPlans, tuningOf } from "@/lib/plans";
 import { randomBytes } from "node:crypto";
 import { allow } from "@/lib/rate-limit";
 import { generateWifiPassword, validateWifiPassword } from "@/lib/wifi-password";
@@ -158,8 +159,7 @@ export async function approveUser(_: unknown, fd: FormData): Promise<{ error?: s
     .from("profiles").select("id, role, requested_role").eq("id", id).eq("tenant_id", me.tenant_id).single();
   if (!p) return { error: "Usuario no encontrado" };
   const role = roles.includes(chosen) ? chosen : roles.includes(p.requested_role) ? p.requested_role : p.role;
-  const { data: bw } = await supabase
-    .from("bandwidth_profiles").select("name, download_kbps, upload_kbps, max_devices").eq("tenant_id", me.tenant_id).eq("role", role).single();
+  const [bw] = await selectPlans((cols) => supabase.from("bandwidth_profiles").select(cols).eq("tenant_id", me.tenant_id).eq("role", role));
 
   const admin = createAdminClient();
   const { data: u } = await admin.auth.admin.getUserById(id);
@@ -170,7 +170,7 @@ export async function approveUser(_: unknown, fd: FormData): Promise<{ error?: s
 
   try {
     // El perfil de velocidad debe existir en el router antes de crear el usuario
-    if (bw) await syncBandwidthProfile(tenant, bw.name, bw.download_kbps, bw.upload_kbps, bw.max_devices);
+    if (bw) await syncBandwidthProfile(tenant, bw.name, bw.download_kbps, bw.upload_kbps, tuningOf(bw));
     await createHotspotUser(tenant, username, password, bw?.name ?? role);
   } catch (e) {
     console.error("Hotspot:", e instanceof Error ? e.message : "error");
@@ -241,14 +241,26 @@ export async function removeHotspot(fd: FormData) {
 export async function saveBandwidth(fd: FormData) {
   const { supabase, me, tenant } = await requireAdmin();
   const id = String(fd.get("id"));
-  const download = Math.max(64, Number(fd.get("download_kbps")));
-  const upload = Math.max(64, Number(fd.get("upload_kbps")));
+  const download = Math.max(64, Number(fd.get("download_kbps")) || 64);
+  const upload = Math.max(64, Number(fd.get("upload_kbps")) || 64);
   const devices = Math.min(10, Math.max(1, Math.round(Number(fd.get("max_devices"))) || 1));
-  const { data: bw } = await supabase
-    .from("bandwidth_profiles")
-    .update({ download_kbps: download, upload_kbps: upload, max_devices: devices })
+  // Mínimo garantizado (nunca más que el máximo) y ráfaga (solo si supera el máximo); 0 = ninguno
+  const min = Math.min(Math.max(0, Math.round(Number(fd.get("min_kbps")) || 0)), download, upload);
+  const rawBurst = Math.max(0, Math.round(Number(fd.get("burst_kbps")) || 0));
+  const burst = rawBurst > Math.max(download, upload) ? rawBurst : 0;
+  const base = { download_kbps: download, upload_kbps: upload, max_devices: devices };
+  const hasSharingFields = fd.has("min_kbps");
+  let { data: bw, error } = await supabase.from("bandwidth_profiles")
+    .update(hasSharingFields ? { ...base, min_kbps: min, burst_kbps: burst } : base)
     .eq("id", id).eq("tenant_id", me.tenant_id).select("name").single();
-  if (bw) await syncBandwidthProfile(tenant, bw.name, download, upload, devices).catch(console.error);
+  if (error && hasSharingFields) {
+    // La migración 0014 todavía no está aplicada: se guarda lo de siempre
+    ({ data: bw } = await supabase.from("bandwidth_profiles").update(base).eq("id", id).eq("tenant_id", me.tenant_id).select("name").single());
+  }
+  if (bw) {
+    const tuning = hasSharingFields ? { maxDevices: devices, minKbps: min, burstKbps: burst } : { maxDevices: devices };
+    await syncBandwidthProfile(tenant, bw.name, download, upload, tuning).catch(console.error);
+  }
   revalidatePath("/admin/bandwidth");
 }
 
@@ -266,9 +278,8 @@ export async function createUser(_: unknown, fd: FormData): Promise<{ error?: st
     {
       roles,
       async findPlan(role) {
-        const { data } = await supabase.from("bandwidth_profiles").select("name, download_kbps, upload_kbps, max_devices")
-          .eq("tenant_id", me.tenant_id).eq("role", role).single();
-        return data ?? null;
+        const [plan] = await selectPlans((cols) => supabase.from("bandwidth_profiles").select(cols).eq("tenant_id", me.tenant_id).eq("role", role));
+        return plan ?? null;
       },
       takenUsernames: () => takenUsernames(supabase, me.tenant_id, tenant),
       async createAuthUser(email) {
@@ -290,7 +301,7 @@ export async function createUser(_: unknown, fd: FormData): Promise<{ error?: st
       },
       async deleteProfile(id) { await admin.from("profiles").delete().eq("id", id); },
       router: {
-        async ensureProfile(plan) { await syncBandwidthProfile(tenant, plan.name, plan.download_kbps, plan.upload_kbps, plan.max_devices); },
+        async ensureProfile(plan) { await syncBandwidthProfile(tenant, plan.name, plan.download_kbps, plan.upload_kbps, tuningOf({ max_devices: plan.max_devices ?? 1, min_kbps: plan.min_kbps, burst_kbps: plan.burst_kbps })); },
         async createHotspotUser(u, p, profile) {
           try { await createHotspotUser(tenant, u, p, profile); } catch (e) { log("router", e); throw e; }
         },

@@ -7,7 +7,9 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { encryptSecret } from "@/lib/crypto";
 import { validateRouterInput } from "@/lib/router-config";
-import { isConfigured, syncBandwidthProfile, testConnection } from "@/lib/mikrotik";
+import { isConfigured, testConnection } from "@/lib/mikrotik";
+import { applySharing } from "@/lib/sharing";
+import { mbpsToKbps, parseNetwork, validateCapacity } from "@/lib/queues";
 import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { buildRouterScript, toRsc, type ScriptBlock } from "@/lib/router-script";
 
@@ -88,12 +90,51 @@ export async function saveTenantRouter(_: RouterConnState, fd: FormData): Promis
   } catch (e) {
     return { warn: `Guardado, pero el router no respondió: ${e instanceof Error ? e.message : "error"}. Revisa el túnel, la URL, el usuario y la huella.` };
   }
-  const { data: plans } = await db.from("bandwidth_profiles").select("name, download_kbps, upload_kbps, max_devices").eq("tenant_id", id);
-  let synced = 0;
-  for (const p of plans ?? []) {
-    try { await syncBandwidthProfile(cfg, p.name, p.download_kbps, p.upload_kbps, p.max_devices); synced++; } catch (e) {
-      console.error("saveTenantRouter perfil:", e instanceof Error ? e.message : "error");
-    }
+  let r;
+  try {
+    r = await applySharing(id, cfg);
+  } catch (e) {
+    console.error("saveTenantRouter reparto:", e instanceof Error ? e.message : "error");
+    return { warn: `Conectado (${info.board}, RouterOS ${info.version}), pero no se pudo aplicar el reparto de velocidad: ${e instanceof Error ? e.message : "error"}` };
   }
-  return { ok: `Conectado: ${info.board}, RouterOS ${info.version}. Perfiles de velocidad subidos: ${synced} de ${plans?.length ?? 0}.` };
+  return { ok: `Conectado: ${info.board}, RouterOS ${info.version}. Perfiles de velocidad subidos: ${r.profiles} de ${r.profilesTotal}.` };
+}
+
+export type CapacityState = { error?: string; ok?: string; warn?: string } | null;
+
+/**
+ * El dueño indica el internet contratado y la red del WiFi de un establecimiento. Se guardan y se aplican en el router:
+ * cola padre, perfiles con su mínimo y ráfaga, y colas de los equipos fijos con IP.
+ */
+export async function saveCapacity(_: CapacityState, fd: FormData): Promise<CapacityState> {
+  await requirePlatformAdmin();
+  const id = f(fd, "tenant_id");
+  const down = Number(f(fd, "down_mbps").replace(",", "."));
+  const up = Number(f(fd, "up_mbps").replace(",", "."));
+  const problem = validateCapacity({ downMbps: down, upMbps: up });
+  if (problem) return { error: problem };
+  const net = parseNetwork(f(fd, "network"));
+  if (!net.ok) return { error: net.error };
+
+  const db = createAdminClient();
+  const { data: row } = await db.from("tenant_router_credentials").select("tenant_id").eq("tenant_id", id).maybeSingle();
+  if (!row) return { error: "Primero guarda la conexión del portal con el router (más abajo en esta pantalla)" };
+  const { error } = await db.from("tenant_router_credentials").update({
+    total_down_kbps: mbpsToKbps(down), total_up_kbps: mbpsToKbps(up), hotspot_network: net.value,
+  }).eq("tenant_id", id);
+  if (error) {
+    console.error("saveCapacity:", error.code ?? "error");
+    return { error: "No se pudo guardar. ¿Aplicaste la migración 0014 en Supabase?" };
+  }
+  revalidatePath(`/platform/router/${id}`);
+
+  const cfg = await getRouterConfig(id);
+  if (!isConfigured(cfg)) return { warn: "Guardado, pero la conexión con el router está incompleta." };
+  try {
+    const r = await applySharing(id, cfg);
+    const extra = r.fixedWithoutIp ? ` ${r.fixedWithoutIp} equipo(s) fijo(s) sin IP quedaron sin cola propia.` : "";
+    return { ok: `Aplicado en el router: cola padre ${down} / ${up} Mbps, ${r.profiles} de ${r.profilesTotal} perfiles y ${r.fixed} equipo(s) fijo(s).${extra}` };
+  } catch (e) {
+    return { warn: `Guardado, pero el router rechazó el cambio: ${e instanceof Error ? e.message : "error"}` };
+  }
 }
