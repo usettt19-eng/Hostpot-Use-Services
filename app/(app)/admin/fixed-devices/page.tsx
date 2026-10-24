@@ -1,6 +1,6 @@
 import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { requireAdminTenant } from "@/lib/portal";
-import { hasSharing, isConfigured, listIpBindings } from "@/lib/mikrotik";
+import { hasSharing, isConfigured, listIpBindings, lookupIpsByMac } from "@/lib/mikrotik";
 import { bindingStatus } from "@/lib/fixed-devices";
 import Link from "next/link";
 import { FixedDeviceForm, EditFixedDeviceForm } from "./form";
@@ -29,9 +29,13 @@ export default async function FixedDevicesPage({ searchParams }: { searchParams:
   let routerIds: Set<string> | null = null;
   let routerError: string | null = null;
   const sharing = hasSharing(cfg);
+  // Con reparto activo, los equipos sin IP escrita se buscan en el router por su MAC
+  let detected = new Map<string, string>();
+  if (sharing && isConfigured(cfg) && rows.some((r) => !r.ip)) detected = await lookupIpsByMac(cfg).catch(() => new Map<string, string>());
+  const ipOf = (r: Row) => r.ip ?? detected.get(r.mac.toUpperCase()) ?? null;
   const speedText = (r: Row) => {
     if (!sharing) return "—";
-    if (!r.ip) return "Sin IP: sin límite";
+    if (!ipOf(r)) return "No se encontró su IP: sin límite";
     if ((r.max_down_kbps ?? 0) > 0 || (r.max_up_kbps ?? 0) > 0) return `Propio: ↓${((r.max_down_kbps ?? 0) / 1024).toFixed(1)} / ↑${((r.max_up_kbps ?? 0) / 1024).toFixed(1)} Mbps`;
     return "Grupo (por igual)";
   };
@@ -59,7 +63,7 @@ export default async function FixedDevicesPage({ searchParams }: { searchParams:
             {rows.length === 0 && <tr><td colSpan={7} className="muted">No hay equipos fijos registrados.</td></tr>}
             {rows.map((r) => (
               <tr key={r.id}>
-                <td>{r.name}</td><td><code>{r.mac}</code></td><td>{r.ip ?? "—"}</td>
+                <td>{r.name}</td><td><code>{r.mac}</code></td><td>{r.ip ?? (ipOf(r) ? `${ipOf(r)} (detectada)` : "—")}</td>
                 <td>{r.location ?? "—"}</td><td>{speedText(r)}</td>
                 <td>{routerError ? "desconocido" : bindingStatus(r.router_binding_id, routerIds)}</td>
                 <td style={{ whiteSpace: "nowrap" }}>

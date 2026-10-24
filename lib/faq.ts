@@ -89,7 +89,7 @@ export const FAQ: FaqGroup[] = [
         "Aparecen cuando el administrador de la plataforma ya indicó cuánto internet contrató tu establecimiento y eligió el reparto «por rol». Mientras tanto, cada persona solo tiene su máximo. Si tu establecimiento usa el reparto «equitativo», todos comparten por igual y no hay velocidades por rol.",
       ] },
       { q: "¿Cómo limito la velocidad de una impresora, una pantalla o una cámara?", a: [
-        "En **Equipos fijos**, al registrarlo abre «Límite de velocidad propio» y escribe su máximo de bajada y subida (en Mbps) y, si quieres, un mínimo garantizado. **Necesita IP fija.**",
+        "En **Equipos fijos**, al registrarlo abre «Límite de velocidad propio» y escribe su máximo de bajada y subida (en Mbps) y, si quieres, un mínimo garantizado. **La IP se detecta sola en el router por la MAC** (puedes escribirla si prefieres fijarla); si no se encuentra, el equipo queda sin límite.",
         "Si no pones límites, el equipo entra al **grupo de equipos fijos**: todos ellos se reparten por igual lo que les toca y nunca dejan sin internet a los clientes. La tabla muestra «Propio» o «Grupo» en la columna Velocidad.",
         "Para cambiar la velocidad de un equipo ya registrado, pulsa **Editar** en su fila, ajusta los Mbps (o vacíalos para que vuelva al grupo) y **Guardar cambios**. La MAC no se edita: si cambia, quita el equipo y regístralo de nuevo.",
       ] },

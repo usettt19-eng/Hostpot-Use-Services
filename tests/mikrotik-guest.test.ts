@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, ensureParentFirst, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, ensureParentFirst, lookupIpsByMac, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -48,6 +48,24 @@ before(async () => {
       if (u.pathname === "/rest/queue/type" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*T9" }));
       if (u.pathname === "/rest/queue/type/*T1" && req.method === "PATCH") return res.end("{}");
       if (u.pathname.startsWith("/rest/queue/simple/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
+      if (u.pathname === "/rest/ip/dhcp-server/lease") return res.end(JSON.stringify([
+        { ".id": "*L1", address: "192.168.200.50", "mac-address": "50:56:bf:3f:2f:05", status: "bound" },
+        { ".id": "*L2", address: "192.168.200.51", "mac-address": "AA:BB:CC:DD:EE:FF", status: "bound" },
+        { ".id": "*L3", address: "192.168.200.52", "mac-address": "11:22:33:44:55:66", status: "waiting" },
+      ]));
+      if (u.pathname === "/rest/ip/arp") return res.end(JSON.stringify([
+        { ".id": "*R1", address: "192.168.200.60", "mac-address": "C0:95:CF:7D:E9:C9" },
+        { ".id": "*R2", address: "192.168.200.61", "mac-address": "00:11:22:33:44:55", invalid: "true" },
+      ]));
+      if (u.pathname === "/rest/ip/dhcp-server/lease") return res.end(JSON.stringify([
+        { ".id": "*L1", address: "192.168.200.50", "mac-address": "50:56:bf:3f:2f:05", status: "bound" },
+        { ".id": "*L2", address: "192.168.200.51", "mac-address": "AA:BB:CC:DD:EE:FF", status: "bound" },
+        { ".id": "*L3", address: "192.168.200.52", "mac-address": "11:22:33:44:55:66", status: "waiting" },
+      ]));
+      if (u.pathname === "/rest/ip/arp") return res.end(JSON.stringify([
+        { ".id": "*R1", address: "192.168.200.60", "mac-address": "C0:95:CF:7D:E9:C9" },
+        { ".id": "*R2", address: "192.168.200.61", "mac-address": "00:11:22:33:44:55", invalid: "true" },
+      ]));
       if (u.pathname === "/rest/queue/simple/move" && req.method === "POST") return res.end("[]");
       if (u.pathname === "/rest/queue/simple" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*Q9" }));
       if (u.pathname === "/rest/queue/simple/*Q1" && req.method === "PATCH") return res.end("{}");
@@ -179,6 +197,24 @@ test("con reparto configurado, el perfil cuelga de la cola padre y lleva mínimo
   await syncBandwidthProfile(cfg, "Plano", 10240, 5120, { maxDevices: 1, minKbps: 1536 });
   const plain = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
   assert.deepEqual(plain.body, { name: "Plano", "rate-limit": "5120k/10240k", "shared-users": "1" });
+});
+
+test("lookupIpsByMac une hosts del Hotspot, DHCP y ARP; el primero que conoce la MAC manda y se ignoran arrendamientos sin asignar y entradas inválidas", async () => {
+  const m = await lookupIpsByMac(cfg);
+  assert.equal(m.get("AA:BB:CC:DD:EE:FF"), "192.168.200.198"); // el host del Hotspot gana al DHCP
+  assert.equal(m.get("50:56:BF:3F:2F:05"), "192.168.200.50");  // DHCP, MAC en minúsculas normalizada
+  assert.equal(m.get("C0:95:CF:7D:E9:C9"), "192.168.200.60");  // solo en ARP
+  assert.equal(m.has("11:22:33:44:55:66"), false);             // arrendamiento sin asignar
+  assert.equal(m.has("00:11:22:33:44:55"), false);             // ARP inválida
+});
+
+test("lookupIpsByMac une hosts del Hotspot, DHCP y ARP: el primero que conoce la MAC manda y se ignoran arrendamientos sin asignar y entradas inválidas", async () => {
+  const m = await lookupIpsByMac(cfg);
+  assert.equal(m.get("AA:BB:CC:DD:EE:FF"), "192.168.200.198"); // el host del Hotspot gana al DHCP
+  assert.equal(m.get("50:56:BF:3F:2F:05"), "192.168.200.50");  // DHCP, MAC en minúsculas normalizada
+  assert.equal(m.get("C0:95:CF:7D:E9:C9"), "192.168.200.60");  // solo en ARP
+  assert.equal(m.has("11:22:33:44:55:66"), false);             // arrendamiento sin asignar
+  assert.equal(m.has("00:11:22:33:44:55"), false);             // ARP inválida
 });
 
 test("PORTAL-ROOT se mueve a la primera posición solo si la cola general del Hotspot va delante", async () => {

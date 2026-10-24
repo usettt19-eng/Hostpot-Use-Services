@@ -37,7 +37,6 @@ export function parseFixedDevice(raw: FixedDeviceInput):
   const speeds: FixedSpeeds = {
     ...(down.kbps ? { max_down_kbps: down.kbps } : {}), ...(up.kbps ? { max_up_kbps: up.kbps } : {}), ...(min.kbps ? { min_kbps: min.kbps } : {}),
   };
-  if (Object.keys(speeds).length && !ip) return { ok: false, error: "Para limitar la velocidad de un equipo necesita una IP fija" };
   if (!!down.kbps !== !!up.kbps) return { ok: false, error: "Escribe la bajada y la subida máximas juntas, o ninguna" };
   return { ok: true, data: { mac, name, ip: ip || null, location: location || null, reason: reason || null, ...speeds } };
 }

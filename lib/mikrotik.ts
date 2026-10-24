@@ -1,6 +1,7 @@
 // Cliente RouterOS v7 REST (https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API)
 import https from "node:https";
 import type { TLSSocket } from "node:tls";
+import { isIPv4, normalizeMac } from "./guest-utils.ts";
 import { FIXED_POOL, FIXED_PREFIX, PARENT_QUEUE, PCQ_DOWN, PCQ_UP, buildRateLimit, fixedQueueName, type SharingMode } from "./queues.ts";
 
 // Si el tenant no tiene router configurado, opera en modo simulado (no falla, devuelve datos de ejemplo).
@@ -453,4 +454,34 @@ export async function removeStaleFixedQueues(c: RouterConfig, keep: Set<string>)
     }
   }
   return n;
+}
+
+/**
+ * IP actual de cada equipo según el router, por MAC (en mayúsculas con «:»). Fuentes, de más a menos fiable para un equipo exento
+ * del Hotspot: sus «hosts», los arrendamientos del DHCP y la tabla ARP. Cada fuente que falle se omite. Sirve para ponerles cola
+ * a los equipos fijos aunque no se haya escrito su IP.
+ */
+export async function lookupIpsByMac(c: RouterConfig): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!isConfigured(c)) return out;
+  const sources: [string, (r: Record<string, string>) => boolean][] = [
+    ["/ip/hotspot/host", () => true],
+    ["/ip/dhcp-server/lease", (r) => r.status === "bound" || r.status === undefined],
+    ["/ip/arp", (r) => r.disabled !== "true" && r.invalid !== "true"],
+  ];
+  for (const [path, ok] of sources) {
+    let rows: Record<string, string>[];
+    try {
+      rows = await rest<Record<string, string>[]>(c, "GET", path);
+    } catch (e) {
+      console.error("lookupIpsByMac", path, e instanceof Error ? e.message : "error");
+      continue;
+    }
+    for (const r of rows) {
+      const mac = normalizeMac(r["mac-address"] ?? "");
+      const ip = r.address ?? "";
+      if (mac && isIPv4(ip) && ok(r) && !out.has(mac)) out.set(mac, ip);
+    }
+  }
+  return out;
 }

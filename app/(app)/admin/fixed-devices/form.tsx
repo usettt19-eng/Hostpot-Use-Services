@@ -12,7 +12,7 @@ export function FixedDeviceForm() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
         <div><label>MAC</label><input name="mac" placeholder="AA:BB:CC:DD:EE:FF" required autoComplete="off" /></div>
         <div><label>Nombre</label><input name="name" required maxLength={80} autoComplete="off" /></div>
-        <div><label>IP fija (opcional)</label><input name="ip" placeholder="192.168.200.201" autoComplete="off" /></div>
+        <div><label>IP (opcional)</label><input name="ip" placeholder="192.168.200.201" autoComplete="off" /></div>
         <div><label>Ubicación</label><input name="location" maxLength={80} autoComplete="off" /></div>
       </div>
       <label>Motivo</label>
@@ -21,7 +21,7 @@ export function FixedDeviceForm() {
         <summary>Límite de velocidad propio (opcional)</summary>
         <div className="foldbody">
           <p className="muted">
-            Necesita IP fija. Si no pones nada, el equipo entra al grupo de equipos fijos, que se reparte por igual y nunca deja sin
+            La IP se detecta sola en el router por la MAC; escríbela solo si quieres fijarla. Si no pones nada, el equipo entra al grupo de equipos fijos, que se reparte por igual y nunca deja sin
             internet a los demás. Si pones un máximo, tiene su propia cola.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
@@ -53,12 +53,12 @@ export function EditFixedDeviceForm({ device }: { device: EditableDevice }) {
       <input type="hidden" name="id" value={device.id} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
         <div><label>Nombre</label><input name="name" required maxLength={80} defaultValue={device.name} autoComplete="off" /></div>
-        <div><label>IP fija</label><input name="ip" defaultValue={device.ip ?? ""} autoComplete="off" /></div>
+        <div><label>IP (opcional)</label><input name="ip" defaultValue={device.ip ?? ""} autoComplete="off" /></div>
         <div><label>Ubicación</label><input name="location" maxLength={80} defaultValue={device.location ?? ""} autoComplete="off" /></div>
         <div><label>Motivo</label><input name="reason" maxLength={200} defaultValue={device.reason ?? ""} autoComplete="off" /></div>
       </div>
       <p className="muted" style={{ marginTop: 12 }}>
-        Velocidad (necesita IP fija). Déjala vacía para que entre al grupo que se reparte por igual.
+        Velocidad (la IP se detecta sola por la MAC si no la escribes). Déjala vacía para que entre al grupo que se reparte por igual.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
         <div><label>Bajada máxima (Mbps)</label><input name="max_down" inputMode="decimal" defaultValue={toMbps(device.max_down_kbps)} autoComplete="off" /></div>
