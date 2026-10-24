@@ -1,6 +1,6 @@
 # Configuración de un MikroTik para el portal (RouterOS 7)
 
-Referencia única de cómo debe quedar un router. Estado: **verificada en el router de prueba (hEX lite, 7.12.1)** salvo lo marcado «sin verificar». Nunca escribir claves aquí.
+Referencia única de cómo debe quedar un router. Estado: **verificada en el router de prueba (hEX lite, 7.12.1)** salvo lo marcado «sin verificar» o «pendiente». Nunca escribir claves aquí.
 
 ## Quién hace qué
 | Qué | Lo hace | Dónde |
@@ -30,8 +30,8 @@ Referencia única de cómo debe quedar un router. Estado: **verificada en el rou
 
 ## Aislamiento de visitantes
 Bloque «Aislar a los visitantes» del script: `use-ip-firewall=yes`, lista `redes-privadas` y tres reglas (visitantes → equipos fijos, visitantes → redes privadas, visitantes → puertos de administración del router).
-- Verificado: las dos reglas de `forward` descartan paquetes.
-- **Sin verificar:** la regla de `input` (contador en 0 hasta ahora). Las reglas dinámicas del Hotspot van primero y podrían aceptar ese tráfico antes. Si al probar `https://192.168.200.1` desde un visitante carga y el contador no sube: `/ip firewall filter move [find comment="portal: visitantes no administran el router"] destination=0`.
+- Verificado en el router de prueba: las tres reglas descartan paquetes (`forward` hacia equipos fijos y hacia redes privadas; `input` hacia los puertos de administración, con la regla puesta al final de la lista, sin moverla).
+- Si en otro router el contador de la regla de `input` no sube al probar `https://<IP del router>` desde un visitante y la página carga, una regla del Hotspot la deja pasar antes: `/ip firewall filter move [find comment="portal: visitantes no administran el router"] destination=0`.
 - Límite: el router no ve el tráfico entre equipos conectados al mismo punto de acceso WiFi (hay que activar el aislamiento de clientes o una red de invitados en el AP).
 - Se activa siempre con **Safe Mode**.
 
