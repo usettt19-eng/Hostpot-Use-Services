@@ -16,7 +16,7 @@ export type RateInput = { downloadKbps: number; uploadKbps: number; minKbps?: nu
  * Valor de `rate-limit` del perfil del Hotspot. RouterOS lo lee como
  * `rx/tx rx-burst/tx-burst umbral-rx/umbral-tx tiempo-rx/tiempo-tx prioridad mínimo-rx/mínimo-tx`,
  * desde la perspectiva del router: rx = lo que sube el cliente, tx = lo que descarga.
- * Sin mínimo ni ráfaga queda el formato simple `subida/bajada`.
+ * Sin mínimo ni ráfaga queda el formato simple `subida/bajada`. Formato comprobado en un router real (7.12).
  */
 export function buildRateLimit(r: RateInput): string {
   const up = Math.max(1, Math.round(r.uploadKbps));
@@ -27,13 +27,13 @@ export function buildRateLimit(r: RateInput): string {
   if (!min && !burst) return base;
   // El mínimo nunca puede superar el máximo de ese sentido
   const minUp = Math.min(min, up), minDown = Math.min(min, down);
-  // Ráfaga: por encima del máximo, hasta el umbral (1/8 del máximo) durante 8 s. Sin ráfaga, los campos repiten el máximo
+  // Verificado en RouterOS 7.12: el tiempo de ráfaga va en segundos SIN la letra «s» (con «s» da «invalid rate-limit»)
+  // y «0/0» en los campos de ráfaga significa sin ráfaga.
+  if (!burst || (burst <= up && burst <= down)) return `${base} 0/0 0/0 0/0 8 ${minUp}k/${minDown}k`;
+  // Ráfaga: por encima del máximo, hasta el umbral (1/8 del máximo) durante 8 s
   const bUp = Math.max(up, burst), bDown = Math.max(down, burst);
-  const hasBurst = burst > up || burst > down;
-  const thrUp = hasBurst ? Math.max(1, Math.round(up / 8)) : up;
-  const thrDown = hasBurst ? Math.max(1, Math.round(down / 8)) : down;
-  const time = hasBurst ? 8 : 1;
-  return `${base} ${bUp}k/${bDown}k ${thrUp}k/${thrDown}k ${time}s/${time}s 8 ${minUp}k/${minDown}k`;
+  const thrUp = Math.max(1, Math.round(up / 8)), thrDown = Math.max(1, Math.round(down / 8));
+  return `${base} ${bUp}k/${bDown}k ${thrUp}k/${thrDown}k 8/8 8 ${minUp}k/${minDown}k`;
 }
 
 /** Red del Hotspot en notación CIDR privada (por ejemplo 192.168.200.0/24). Devuelve el valor limpio o el error. */

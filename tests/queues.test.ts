@@ -7,22 +7,29 @@ test("sin mínimo ni ráfaga, el formato simple de siempre (subida/bajada)", () 
   assert.equal(buildRateLimit({ downloadKbps: 5120, uploadKbps: 2048, minKbps: 0, burstKbps: 0 }), "2048k/5120k");
 });
 
-test("con mínimo y sin ráfaga, los campos de ráfaga repiten el máximo", () => {
-  assert.equal(buildRateLimit({ downloadKbps: 5120, uploadKbps: 2048, minKbps: 750 }), "2048k/5120k 2048k/5120k 2048k/5120k 1s/1s 8 750k/750k");
+test("con mínimo y sin ráfaga, los campos de ráfaga van en cero (formato aceptado por RouterOS 7.12)", () => {
+  assert.equal(buildRateLimit({ downloadKbps: 5120, uploadKbps: 2048, minKbps: 750 }), "2048k/5120k 0/0 0/0 0/0 8 750k/750k");
 });
 
 test("con ráfaga: umbral de un octavo del máximo durante 8 s", () => {
   assert.equal(
     buildRateLimit({ downloadKbps: 20480, uploadKbps: 20480, minKbps: 750, burstKbps: 25000 }),
-    "20480k/20480k 25000k/25000k 2560k/2560k 8s/8s 8 750k/750k",
+    "20480k/20480k 25000k/25000k 2560k/2560k 8/8 8 750k/750k",
   );
 });
 
 test("el mínimo se recorta al máximo de cada sentido y nunca hay valores inválidos", () => {
-  assert.equal(buildRateLimit({ downloadKbps: 5120, uploadKbps: 512, minKbps: 1536 }), "512k/5120k 512k/5120k 512k/5120k 1s/1s 8 512k/1536k");
+  assert.equal(buildRateLimit({ downloadKbps: 5120, uploadKbps: 512, minKbps: 1536 }), "512k/5120k 0/0 0/0 0/0 8 512k/1536k");
   const s = buildRateLimit({ downloadKbps: 0, uploadKbps: -5, minKbps: 100 });
   assert.match(s, /^1k\/1k /);
   assert.doesNotMatch(s, /NaN|undefined|-/);
+  // Nunca una «s» en los tiempos (RouterOS 7.12 la rechaza) y una ráfaga por debajo del máximo se ignora
+  for (const x of [s, buildRateLimit({ downloadKbps: 5120, uploadKbps: 2048, minKbps: 750 }), buildRateLimit({ downloadKbps: 5120, uploadKbps: 2048, minKbps: 750, burstKbps: 8000 })]) {
+    assert.doesNotMatch(x, /\d+s\b/);
+  }
+  assert.equal(buildRateLimit({ downloadKbps: 5120, uploadKbps: 2048, minKbps: 750, burstKbps: 1000 }), "2048k/5120k 0/0 0/0 0/0 8 750k/750k"); // menor que ambos máximos: sin ráfaga
+  // Mayor solo que el máximo de subida: la ráfaga aplica a ese sentido; en el otro queda igual al máximo
+  assert.equal(buildRateLimit({ downloadKbps: 5120, uploadKbps: 2048, minKbps: 750, burstKbps: 3000 }), "2048k/5120k 3000k/5120k 256k/640k 8/8 8 750k/750k");
 });
 
 test("red del WiFi: privada, con máscara razonable", () => {

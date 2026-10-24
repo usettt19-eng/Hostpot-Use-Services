@@ -169,7 +169,7 @@ test("con reparto configurado, el perfil cuelga de la cola padre y lleva mínimo
   await syncBandwidthProfile(shared, "Personal", 10240, 5120, { maxDevices: 2, minKbps: 1536, burstKbps: 0 });
   const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
   assert.deepEqual(put.body, {
-    name: "Personal", "rate-limit": "5120k/10240k 5120k/10240k 5120k/10240k 1s/1s 8 1536k/1536k", "shared-users": "2", "parent-queue": "PORTAL-ROOT",
+    name: "Personal", "rate-limit": "5120k/10240k 0/0 0/0 0/0 8 1536k/1536k", "shared-users": "2", "parent-queue": "PORTAL-ROOT",
   });
   // sin reparto: nada de padre ni mínimo, aunque el perfil los tenga
   await syncBandwidthProfile(cfg, "Plano", 10240, 5120, { maxDevices: 1, minKbps: 1536 });
