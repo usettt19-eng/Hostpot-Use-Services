@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -27,7 +27,12 @@ before(async () => {
       res.setHeader("content-type", "application/json");
       const u = new URL(req.url!, "https://x");
       if (u.pathname === "/rest/ip/hotspot/user/profile" && req.method === "GET") {
-        return res.end(JSON.stringify(u.searchParams.get("name") === "Existente" ? [{ ".id": "*P1", name: "Existente" }] : []));
+        const pn = u.searchParams.get("name");
+        return res.end(JSON.stringify(pn === "Existente" ? [{ ".id": "*P1", name: pn }] : pn === "Rechazado" ? [{ ".id": "*P3", name: pn }] : []));
+      }
+      if (u.pathname === "/rest/ip/hotspot/user/profile/*P3" && req.method === "PATCH") {
+        if (raw.includes("parent-queue")) { res.statusCode = 400; return res.end(JSON.stringify({ error: 400, message: "invalid value for argument parent-queue" })); }
+        return res.end("{}");
       }
       if (u.pathname === "/rest/ip/hotspot/user/profile" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*P2" }));
       if (u.pathname === "/rest/ip/hotspot/user/profile/*P1" && req.method === "PATCH") return res.end(JSON.stringify({}));
@@ -224,4 +229,20 @@ test("grupo de equipos fijos con PCQ bajo el padre, y limpieza de colas que sobr
   assert.ok(seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q7"));
   assert.ok(!seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q6"), "no toca el ROOT del cliente");
   assert.ok(!seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q8"), "conserva el grupo");
+});
+
+test("si el router rechaza el reparto, el perfil queda con el límite simple y el error se informa", async () => {
+  const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24" };
+  await assert.rejects(
+    () => syncBandwidthProfile(shared, "Rechazado", 10240, 5120, { maxDevices: 2, minKbps: 1536 }),
+    /rechazó el reparto en el perfil «Rechazado».*parent-queue.*límite simple/s,
+  );
+  const patches = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/ip/hotspot/user/profile/*P3");
+  assert.equal(patches.length, 2); // el intento completo y el de respaldo
+  assert.deepEqual(patches[1].body, { "rate-limit": "5120k/10240k", "shared-users": "2" });
+});
+
+test("syncBandwidthProfileSafe no falla si solo se rechazó el reparto (aprobar usuarios no se bloquea)", async () => {
+  const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24" };
+  await syncBandwidthProfileSafe(shared, "Rechazado", 10240, 5120, { maxDevices: 2, minKbps: 1536 }); // no lanza
 });

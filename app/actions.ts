@@ -16,7 +16,7 @@ import {
   setHotspotUserDisabled,
   setHotspotUserPassword,
   kickUserSessions,
-  syncBandwidthProfile,
+  syncBandwidthProfileSafe,
   isConfigured,
   listHotspotUserNames,
 } from "@/lib/mikrotik";
@@ -170,7 +170,7 @@ export async function approveUser(_: unknown, fd: FormData): Promise<{ error?: s
 
   try {
     // El perfil de velocidad debe existir en el router antes de crear el usuario
-    if (bw) await syncBandwidthProfile(tenant, bw.name, bw.download_kbps, bw.upload_kbps, tuningOf(bw));
+    if (bw) await syncBandwidthProfileSafe(tenant, bw.name, bw.download_kbps, bw.upload_kbps, tuningOf(bw));
     await createHotspotUser(tenant, username, password, bw?.name ?? role);
   } catch (e) {
     console.error("Hotspot:", e instanceof Error ? e.message : "error");
@@ -259,7 +259,7 @@ export async function saveBandwidth(fd: FormData) {
   }
   if (bw) {
     const tuning = hasSharingFields ? { maxDevices: devices, minKbps: min, burstKbps: burst } : { maxDevices: devices };
-    await syncBandwidthProfile(tenant, bw.name, download, upload, tuning).catch(console.error);
+    await syncBandwidthProfileSafe(tenant, bw.name, download, upload, tuning).catch(console.error);
   }
   revalidatePath("/admin/bandwidth");
 }
@@ -301,7 +301,7 @@ export async function createUser(_: unknown, fd: FormData): Promise<{ error?: st
       },
       async deleteProfile(id) { await admin.from("profiles").delete().eq("id", id); },
       router: {
-        async ensureProfile(plan) { await syncBandwidthProfile(tenant, plan.name, plan.download_kbps, plan.upload_kbps, tuningOf({ max_devices: plan.max_devices ?? 1, min_kbps: plan.min_kbps, burst_kbps: plan.burst_kbps })); },
+        async ensureProfile(plan) { await syncBandwidthProfileSafe(tenant, plan.name, plan.download_kbps, plan.upload_kbps, tuningOf({ max_devices: plan.max_devices ?? 1, min_kbps: plan.min_kbps, burst_kbps: plan.burst_kbps })); },
         async createHotspotUser(u, p, profile) {
           try { await createHotspotUser(tenant, u, p, profile); } catch (e) { log("router", e); throw e; }
         },

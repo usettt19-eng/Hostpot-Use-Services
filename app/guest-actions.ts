@@ -7,7 +7,7 @@ import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { blindIndex, encryptSecret } from "@/lib/crypto";
 import { getPublishedPortal, getTenantBySlug, requireAdminTenant } from "@/lib/portal";
 import { connectGuest, type FlowDb, type RouterApi } from "@/lib/guest-flow";
-import { createGuestUser, findHostByAddress, isConfigured, syncBandwidthProfile } from "@/lib/mikrotik";
+import { createGuestUser, findHostByAddress, isConfigured, syncBandwidthProfileSafe } from "@/lib/mikrotik";
 import { DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 import { pickLocale } from "@/lib/portal-settings";
 import { minutesOpenLeft, nextOpeningText, type Window } from "@/lib/schedule";
@@ -94,7 +94,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
     ? {
         findHost: (ip) => findHostByAddress(cfg, ip),
         // Se reenvían los dispositivos, el mínimo y la ráfaga del plan para no pisar lo que configuró el administrador
-        ensureProfile: async (name, d, u) => { await syncBandwidthProfile(cfg, name, d, u, tuningOf(plan)); },
+        ensureProfile: async (name, d, u) => { await syncBandwidthProfileSafe(cfg, name, d, u, tuningOf(plan)); },
         createGuestUser: (u) => createGuestUser(cfg, u),
       }
     : null;

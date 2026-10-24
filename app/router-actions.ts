@@ -97,6 +97,7 @@ export async function saveTenantRouter(_: RouterConnState, fd: FormData): Promis
     console.error("saveTenantRouter reparto:", e instanceof Error ? e.message : "error");
     return { warn: `Conectado (${info.board}, RouterOS ${info.version}), pero no se pudo aplicar el reparto de velocidad: ${e instanceof Error ? e.message : "error"}` };
   }
+  if (r.errors.length) return { warn: `Conectado (${info.board}, RouterOS ${info.version}), pero el router rechazó parte del reparto: ${r.errors.slice(0, 2).join(" | ").slice(0, 600)}` };
   return { ok: `Conectado: ${info.board}, RouterOS ${info.version}. Perfiles de velocidad subidos: ${r.profiles} de ${r.profilesTotal}.` };
 }
 
@@ -134,6 +135,10 @@ export async function saveCapacity(_: CapacityState, fd: FormData): Promise<Capa
   try {
     const r = await applySharing(id, cfg);
     const extra = r.fixedWithoutIp ? ` ${r.fixedWithoutIp} equipo(s) fijo(s) sin IP quedaron sin cola propia.` : "";
+    if (r.errors.length) {
+      // El padre se creó pero el router rechazó algo más: se dice qué, para poder corregirlo
+      return { warn: `Se creó la cola padre (${down} / ${up} Mbps), pero el router rechazó parte del reparto (${r.profiles} de ${r.profilesTotal} perfiles aplicados). ${r.errors.slice(0, 2).join(" | ").slice(0, 600)}` };
+    }
     return { ok: `Aplicado en el router: cola padre ${down} / ${up} Mbps (${mode === "equal" ? "reparto equitativo" : "reparto por rol"}), ${r.profiles} de ${r.profilesTotal} perfiles y ${r.fixed} equipo(s) fijo(s).${extra}` };
   } catch (e) {
     return { warn: `Guardado, pero el router rechazó el cambio: ${e instanceof Error ? e.message : "error"}` };

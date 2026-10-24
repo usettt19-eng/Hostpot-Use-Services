@@ -84,6 +84,9 @@ function rest<T>(c: RouterConfig, method: string, path: string, body?: unknown):
 }
 
 /** Asegura un user-profile de Hotspot con límite de velocidad "subida/bajada" (ej. 1024k/2048k). */
+/** El router rechazó el reparto en un perfil, pero el perfil quedó con el límite simple y sigue sirviendo. */
+export class SharingRejectedError extends Error {}
+
 export type ProfileTuning = { maxDevices?: number; minKbps?: number; burstKbps?: number };
 
 /**
@@ -111,12 +114,34 @@ export async function syncBandwidthProfile(
   const existing = await rest<{ ".id": string; name: string }[]>(
     c, "GET", `/ip/hotspot/user/profile?name=${encodeURIComponent(name)}`
   );
-  if (existing.length) {
-    await rest(c, "PATCH", `/ip/hotspot/user/profile/${existing[0][".id"]}`, body);
-  } else {
-    await rest(c, "PUT", "/ip/hotspot/user/profile", { name, ...body });
+  const apply = (b: Record<string, string>) => existing.length
+    ? rest(c, "PATCH", `/ip/hotspot/user/profile/${existing[0][".id"]}`, b)
+    : rest(c, "PUT", "/ip/hotspot/user/profile", { name, ...b });
+  try {
+    await apply(body);
+  } catch (e) {
+    if (!sharing) throw e;
+    // El router rechazó el reparto (padre, mínimo o ráfaga): el perfil no debe quedar sin actualizar, así que se deja con el límite simple de siempre
+    await apply({ "rate-limit": buildRateLimit({ downloadKbps, uploadKbps }), "shared-users": shared });
+    throw new SharingRejectedError(`El router rechazó el reparto en el perfil «${name}» (${e instanceof Error ? e.message : "error"}); quedó con el límite simple`);
   }
   return { simulated: false };
+}
+
+/**
+ * Igual que `syncBandwidthProfile`, pero si el router solo rechazó el reparto (el perfil quedó con el límite simple) no falla:
+ * aprobar, crear usuarios o conectar visitantes no deben bloquearse por eso. El error sí se informa al aplicar el reparto.
+ */
+export async function syncBandwidthProfileSafe(...args: Parameters<typeof syncBandwidthProfile>) {
+  try {
+    return await syncBandwidthProfile(...args);
+  } catch (e) {
+    if (e instanceof SharingRejectedError) {
+      console.error("syncBandwidthProfile:", e.message);
+      return { simulated: false };
+    }
+    throw e;
+  }
 }
 
 /** Crea o actualiza la cola padre con el internet contratado. Va antes que los perfiles que cuelgan de ella. */
