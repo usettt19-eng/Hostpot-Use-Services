@@ -15,6 +15,9 @@ import { allow } from "@/lib/rate-limit";
 import { selectPlans, tuningOf } from "@/lib/plans";
 import { VISITOR_LIST } from "@/lib/isolation";
 import { isTenantSuspended } from "@/lib/tenant-status";
+import { moduleEnabled } from "@/lib/tenant-modules";
+import { pickPromotion, promoPageUrl, type PromoCandidate } from "@/lib/promotions";
+import { siteOrigin } from "@/lib/site-url";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean } | null;
 
@@ -31,7 +34,7 @@ function makeDb(): FlowDb {
       return count ?? 0;
     },
     async upsertGuest(tenantId, g) {
-      const find = () => db.from("guests").select("id, visit_count")
+      const find = () => db.from("guests").select("id, visit_count, last_seen_at")
         .eq("tenant_id", tenantId).eq("email_hash", g.emailHash).maybeSingle();
       let { data } = await find();
       if (!data) {
@@ -39,7 +42,7 @@ function makeDb(): FlowDb {
           tenant_id: tenantId, email_hash: g.emailHash, email_enc: g.emailEnc,
           full_name: g.fullName, phone_enc: g.phoneEnc,
         }).select("id").single();
-        if (ins.data) return { id: ins.data.id };
+        if (ins.data) return { id: ins.data.id, visitCount: 1, lastSeenBefore: null };
         ({ data } = await find()); // otra petición lo creó a la vez
         if (!data) throw new Error("No se pudo guardar al invitado");
       }
@@ -47,7 +50,7 @@ function makeDb(): FlowDb {
         visit_count: data.visit_count + 1, last_seen_at: new Date().toISOString(),
         ...(g.fullName ? { full_name: g.fullName } : {}), ...(g.phoneEnc ? { phone_enc: g.phoneEnc } : {}),
       }).eq("id", data.id);
-      return { id: data.id };
+      return { id: data.id, visitCount: data.visit_count + 1, lastSeenBefore: data.last_seen_at ? new Date(data.last_seen_at) : null };
     },
     async insertConsents(rows) {
       const { error } = await db.from("guest_consents").insert(rows);
@@ -118,6 +121,15 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
       blindIndex, encrypt: encryptSecret,
       randomHex: (n) => randomBytes(n).toString("hex"),
       randomPassword: () => randomBytes(9).toString("base64url"),
+      // Módulo Promociones (solo si el dueño lo activó para este establecimiento)
+      promo: async (tenantId, guest, next) => {
+        if (!(await moduleEnabled(tenantId, "promotions"))) return null;
+        const { data } = await createAdminClient().from("promotions")
+          .select("id, status, segment, inactive_days, starts_at, ends_at, created_at, content")
+          .eq("tenant_id", tenantId).eq("status", "active");
+        const picked = pickPromotion((data ?? []) as PromoCandidate[], guest, new Date());
+        return picked ? promoPageUrl(siteOrigin(h), tenant.slug, picked.id, next) : null;
+      },
     },
     {
       schedule,

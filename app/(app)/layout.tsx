@@ -5,6 +5,7 @@ import { logout } from "@/app/actions";
 import { ROLE_LABEL, isAdminRole } from "@/lib/roles";
 import { isPlatformAdmin } from "@/lib/platform";
 import { isTenantSuspended } from "@/lib/tenant-status";
+import { enabledModules } from "@/lib/tenant-modules";
 import AppNav, { type NavGroup } from "@/components/AppNav";
 import Link from "next/link";
 import { ChangePasswordForm } from "@/components/PasswordForms";
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const tenant = me?.tenants as unknown as { name: string } | null;
   const brand = tenant?.name ?? "Portal";
 
+  const modules = isAdmin && me ? await enabledModules(me.tenant_id) : new Set<string>();
   const groups: NavGroup[] = [{ title: null, items: [{ href: "/dashboard", label: "Inicio", icon: "home" }] }];
   if (isAdmin) {
     groups.push(
@@ -32,6 +34,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       { title: "Portal", items: [
         { href: "/admin/portal", label: "Diseño y horarios", icon: "portal" },
         { href: "/admin/guests", label: "Visitantes", icon: "guest" },
+        ...(modules.has("promotions") ? [{ href: "/admin/promotions", label: "Promociones", icon: "tag" }] : []),
       ] },
       { title: "Seguimiento", items: [
         { href: "/admin/connected", label: "Conectados", icon: "live" },

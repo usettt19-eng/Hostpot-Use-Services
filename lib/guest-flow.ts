@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { PortalSettings } from "./portal-settings.ts";
+import type { GuestHistory } from "./promotions.ts";
 import {
   buildLoginRedirect, isIPv4, isMac, isValidEmail, normalizeEmail, normalizeMac, normalizePhone, parseLoginUrl, routerDuration, sanitizeOrig,
 } from "./guest-utils.ts";
@@ -25,7 +26,8 @@ export type SessionRow = {
 
 export type FlowDb = {
   countSessions(tenantId: string, sinceIso: string, ip?: string): Promise<number>;
-  upsertGuest(tenantId: string, g: { emailHash: string; emailEnc: string; fullName: string | null; phoneEnc: string | null }): Promise<{ id: string }>;
+  /** `visitCount` ya cuenta la visita actual; `lastSeenBefore` es la visita anterior (null si es la primera). */
+  upsertGuest(tenantId: string, g: { emailHash: string; emailEnc: string; fullName: string | null; phoneEnc: string | null }): Promise<{ id: string; visitCount?: number; lastSeenBefore?: Date | null }>;
   insertConsents(rows: ConsentRow[]): Promise<void>;
   insertSession(row: SessionRow): Promise<string>;
   updateSession(id: string, patch: { status: "pending" | "active" | "ended" | "failed" }): Promise<void>;
@@ -39,6 +41,8 @@ export type FlowDeps = {
   encrypt(value: string): string;
   randomHex(bytes: number): string;
   randomPassword(): string;
+  /** Módulo Promociones: página de la campaña que le toca al visitante (con `next` = su destino), o null si no hay. Si falla, se ignora. */
+  promo?(tenantId: string, guest: GuestHistory, next: string): Promise<string | null>;
 };
 
 export type FlowInput = {
@@ -117,7 +121,7 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   if (host.authorized || host.bypassed) return { ok: true, redirect: dst || login.replace(/\/login$/, "/status") };
 
   // Persona, consentimientos y sesión
-  const { id: guestId } = await deps.db.upsertGuest(input.tenantId, {
+  const { id: guestId, visitCount, lastSeenBefore } = await deps.db.upsertGuest(input.tenantId, {
     emailHash: deps.blindIndex(input.tenantId, email),
     emailEnc: deps.encrypt(email),
     fullName: name || null,
@@ -151,5 +155,14 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   }
 
   // Redirección de nivel superior (GET) al login del Hotspot con la credencial de un solo uso
-  return { ok: true, redirect: buildLoginRedirect(login, username, password, dst) };
+  // Con el módulo Promociones, el visitante aterriza en su campaña (que luego lo lleva a su destino); un fallo aquí nunca impide conectar
+  let landing = dst;
+  if (deps.promo) {
+    try {
+      landing = (await deps.promo(input.tenantId, { visitCount: visitCount ?? 1, lastSeenBefore: lastSeenBefore ?? null }, dst)) || dst;
+    } catch {
+      landing = dst;
+    }
+  }
+  return { ok: true, redirect: buildLoginRedirect(login, username, password, landing) };
 }

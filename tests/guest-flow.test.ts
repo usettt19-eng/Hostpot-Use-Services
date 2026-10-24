@@ -179,3 +179,35 @@ test("un destino original malicioso se descarta", async () => {
   const r = await connectGuest(s.deps, s.input) as any;
   assert.equal(new URL(r.redirect).searchParams.has("dst"), false);
 });
+
+test("Promociones: el visitante aterriza en su campaña con su destino original en «next»", async () => {
+  const s = setup();
+  let seen: any;
+  s.deps.db.upsertGuest = async () => ({ id: "g1", visitCount: 4, lastSeenBefore: new Date("2026-08-01T00:00:00Z") });
+  s.deps.promo = async (tenantId, guest, next) => { seen = { tenantId, guest, next }; return "https://portal.x.com/w/cafe/promo/p1?next=" + encodeURIComponent(next); };
+  const r = await connectGuest(s.deps, s.input);
+  assert.ok(r.ok && "redirect" in r);
+  assert.deepEqual([seen.tenantId, seen.guest.visitCount, seen.next], ["t1", 4, "http://neverssl.com/"]);
+  const dst = new URL((r as any).redirect).searchParams.get("dst")!;
+  assert.equal(new URL(dst).pathname, "/w/cafe/promo/p1");
+  assert.equal(new URL(dst).searchParams.get("next"), "http://neverssl.com/");
+});
+
+test("Promociones: sin campaña, o si el módulo falla, se conecta igual y va al destino original", async () => {
+  for (const promo of [async () => null, async () => { throw new Error("boom"); }]) {
+    const s = setup();
+    s.deps.promo = promo;
+    const r = await connectGuest(s.deps, s.input);
+    assert.ok(r.ok && "redirect" in r);
+    assert.equal(new URL((r as any).redirect).searchParams.get("dst"), "http://neverssl.com/");
+  }
+});
+
+test("Promociones: un visitante ya autorizado no pasa por la campaña", async () => {
+  const s = setup({ host: { mac: MAC, authorized: true, bypassed: false, server: "hotspot-test" } });
+  let called = false;
+  s.deps.promo = async () => { called = true; return "https://x/promo"; };
+  const r = await connectGuest(s.deps, s.input);
+  assert.ok(r.ok && "redirect" in r);
+  assert.equal(called, false);
+});

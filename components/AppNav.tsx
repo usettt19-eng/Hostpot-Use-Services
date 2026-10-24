@@ -19,6 +19,7 @@ const ICONS: Record<string, ReactNode> = {
   chart: <path d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3" />,
   data: <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />,
   help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01" /></>,
+  tag: <><path d="M3 12V4h8l10 10-8 8L3 12z" /><circle cx="7.5" cy="8.5" r="1.2" /></>,
   building: <path d="M4 21V4h10v17M14 9h6v12M3 21h18M8 8h2M8 12h2M8 16h2" />,
 };
 

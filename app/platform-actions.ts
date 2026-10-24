@@ -7,6 +7,7 @@ import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { createTenantWithAdmin } from "@/lib/create-tenant";
 import { tenantDeps } from "@/lib/tenant-deps";
 import { cutAllAccess, enableUsers } from "@/lib/mikrotik";
+import { isModuleKey } from "@/lib/modules";
 
 /** Suspende o reactiva un establecimiento: guarda el estado y corta o restablece el WiFi en su router. */
 export async function setTenantSuspended(fd: FormData) {
@@ -38,6 +39,21 @@ export async function setTenantSuspended(fd: FormData) {
     console.error("setTenantSuspended router:", e instanceof Error ? e.message : "error");
   }
   revalidatePath("/platform");
+}
+
+/** Activa o desactiva un módulo de un establecimiento. Lo hace solo el dueño de la plataforma; los datos del módulo se conservan al desactivarlo. */
+export async function setTenantModule(fd: FormData) {
+  await requirePlatformAdmin();
+  const id = String(fd.get("id") ?? "");
+  const module = String(fd.get("module") ?? "");
+  if (!isModuleKey(module)) return;
+  const db = createAdminClient();
+  const { data: t } = await db.from("tenants").select("id").eq("id", id).maybeSingle();
+  if (!t) return;
+  if (fd.get("enabled") === "1") await db.from("tenant_modules").upsert({ tenant_id: id, module });
+  else await db.from("tenant_modules").delete().eq("tenant_id", id).eq("module", module);
+  revalidatePath("/platform");
+  revalidatePath("/", "layout"); // el menú de ese establecimiento cambia
 }
 
 export type NewTenantState = { error?: string; created?: { name: string; slug: string; email: string; password: string } } | null;
