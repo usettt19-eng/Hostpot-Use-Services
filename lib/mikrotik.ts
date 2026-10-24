@@ -164,18 +164,19 @@ export async function ensureParentQueue(c: RouterConfig) {
 }
 
 /**
- * Deja `PORTAL-ROOT` como primera cola de la lista. RouterOS atiende las colas de primer nivel en orden y la cola general del
- * Hotspot (`hs-<servidor>`, dinámica, apunta a toda la interfaz) se queda con todo el tráfico si va antes: las colas que cuelgan de
- * `PORTAL-ROOT` (usuarios, visitantes, equipos fijos) no recibirían ni un byte y nadie quedaría limitado. Dato del router real (7.12).
+ * Deja `PORTAL-ROOT` delante de la cola general del Hotspot (`hs-<servidor>`, dinámica, apunta a toda la interfaz). RouterOS atiende
+ * las colas de primer nivel en orden y esa cola se queda con todo el tráfico si va antes: las colas que cuelgan de `PORTAL-ROOT`
+ * (usuarios, visitantes, equipos fijos) no recibirían ni un byte y nadie quedaría limitado. Dato del router real (7.12).
+ * Las colas de usuario que RouterOS crea al iniciar sesión (dinámicas, siempre arriba) cuelgan de `PORTAL-ROOT` y no importan.
  * Devuelve true si tuvo que moverla.
  */
 export async function ensureParentFirst(c: RouterConfig): Promise<boolean> {
   if (!isConfigured(c) || !hasSharing(c)) return false;
   const all = await rest<{ ".id": string; name?: string }[]>(c, "GET", "/queue/simple");
-  const first = all[0];
-  const mine = all.find((q) => q.name === PARENT_QUEUE);
-  if (!first || !mine || first[".id"] === mine[".id"]) return false;
-  await rest(c, "POST", "/queue/simple/move", { numbers: mine[".id"], destination: first[".id"] });
+  const mine = all.findIndex((q) => q.name === PARENT_QUEUE);
+  const general = all.findIndex((q) => q.name?.startsWith("hs-"));
+  if (mine < 0 || general < 0 || mine < general) return false;
+  await rest(c, "POST", "/queue/simple/move", { numbers: all[mine][".id"], destination: all[general][".id"] });
   return true;
 }
 

@@ -40,7 +40,9 @@ before(async () => {
         const n = u.searchParams.get("name");
         if (n === null) {
           const list = [{ ".id": "*Q1", name: "PORTAL-ROOT" }, { ".id": "*Q7", name: "FIXED-OLD" }, { ".id": "*Q8", name: "FIXED-POOL" }, { ".id": "*Q6", name: "ROOT" }];
-          return res.end(JSON.stringify((globalThis as { __hsFirst?: boolean }).__hsFirst ? [{ ".id": "*H1", name: "hs-<hotspot-test>" }, ...list] : list));
+          const g = globalThis as { __hsFirst?: boolean; __userFirst?: boolean };
+          if (g.__userFirst) return res.end(JSON.stringify([{ ".id": "*U1", name: "<hotspot-g_abc>" }, ...list, { ".id": "*H1", name: "hs-<hotspot-test>" }]));
+          return res.end(JSON.stringify(g.__hsFirst ? [{ ".id": "*H1", name: "hs-<hotspot-test>" }, ...list] : list));
         }
         return res.end(JSON.stringify(n === "PORTAL-ROOT" || n === "FIXED-AA:BB:CC:DD:EE:01" ? [{ ".id": "*Q1", name: n }] : []));
       }
@@ -217,10 +219,15 @@ test("lookupIpsByMac une hosts del Hotspot, DHCP y ARP: el primero que conoce la
   assert.equal(m.has("00:11:22:33:44:55"), false);             // ARP inválida
 });
 
-test("PORTAL-ROOT se mueve a la primera posición solo si la cola general del Hotspot va delante", async () => {
+test("PORTAL-ROOT se mueve solo si la cola general del Hotspot va delante; una cola de usuario arriba no cuenta", async () => {
   const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24" };
   assert.equal(await ensureParentFirst(shared), false);
   assert.ok(!seen.some((x) => x.url === "/rest/queue/simple/move"));
+  (globalThis as { __userFirst?: boolean }).__userFirst = true;
+  try {
+    assert.equal(await ensureParentFirst(shared), false); // <hotspot-…> de un usuario en el puesto 0, hs- después de PORTAL-ROOT
+    assert.ok(!seen.some((x) => x.url === "/rest/queue/simple/move"));
+  } finally { (globalThis as { __userFirst?: boolean }).__userFirst = false; }
   (globalThis as { __hsFirst?: boolean }).__hsFirst = true;
   try {
     assert.equal(await ensureParentFirst(shared), true);
