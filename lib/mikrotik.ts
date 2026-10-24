@@ -407,10 +407,13 @@ export async function kickUserSessions(c: RouterConfig, username: string): Promi
 /** Grupo de equipos fijos que se reparten por igual (PCQ) bajo la cola padre. */
 export async function upsertPoolQueue(c: RouterConfig, q: { target: string; guaranteeKbps: number }) {
   if (!isConfigured(c) || !hasSharing(c)) return { simulated: true };
+  // RouterOS rechaza un limit-at mayor que el max-limit, y «0» (sin tope) cuenta como menor: el grupo puede usar hasta todo el internet contratado
+  const maxUp = c.total_up_kbps ?? 0, maxDown = c.total_down_kbps ?? 0;
+  const g = Math.max(0, q.guaranteeKbps);
   const body = {
     target: q.target,
-    "max-limit": "0/0",
-    "limit-at": `${Math.max(0, q.guaranteeKbps)}k/${Math.max(0, q.guaranteeKbps)}k`,
+    "max-limit": `${maxUp}k/${maxDown}k`,
+    "limit-at": `${Math.min(g, maxUp || g)}k/${Math.min(g, maxDown || g)}k`,
     parent: PARENT_QUEUE,
     queue: `${PCQ_UP}/${PCQ_DOWN}`,
     comment: "Portal: equipos fijos (reparto por igual)",

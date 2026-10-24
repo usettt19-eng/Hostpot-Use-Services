@@ -221,7 +221,7 @@ test("grupo de equipos fijos con PCQ bajo el padre, y limpieza de colas que sobr
   await upsertPoolQueue(shared, { target: "192.168.200.202/32,192.168.200.203/32", guaranteeKbps: 1024 });
   const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/queue/simple").pop()!;
   assert.deepEqual(put.body, {
-    name: "FIXED-POOL", target: "192.168.200.202/32,192.168.200.203/32", "max-limit": "0/0", "limit-at": "1024k/1024k",
+    name: "FIXED-POOL", target: "192.168.200.202/32,192.168.200.203/32", "max-limit": "51200k/51200k", "limit-at": "1024k/1024k",
     parent: "PORTAL-ROOT", queue: "pcq-upload-default/pcq-download-default", comment: "Portal: equipos fijos (reparto por igual)",
   });
   const removed = await removeStaleFixedQueues(shared, new Set(["FIXED-POOL"]));
