@@ -119,23 +119,11 @@ export async function syncBandwidthProfile(
   return { simulated: false };
 }
 
-/** Tipos de cola PCQ (reparto por igual entre direcciones): bajada por destino, subida por origen. */
-async function ensureQueueTypes(c: RouterConfig) {
-  const types: [string, string][] = [[PCQ_DOWN, "dst-address"], [PCQ_UP, "src-address"]];
-  for (const [name, classifier] of types) {
-    const body = { kind: "pcq", "pcq-classifier": classifier, "pcq-rate": "0", "pcq-limit": "50KiB", "pcq-total-limit": "2000KiB" };
-    const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/type?name=${encodeURIComponent(name)}`);
-    if (found.length) await rest(c, "PATCH", `/queue/type/${found[0][".id"]}`, body);
-    else await rest(c, "PUT", "/queue/type", { name, ...body });
-  }
-}
-
 /** Crea o actualiza la cola padre con el internet contratado. Va antes que los perfiles que cuelgan de ella. */
 export async function ensureParentQueue(c: RouterConfig) {
   if (!isConfigured(c)) return { simulated: true };
   if (!hasSharing(c)) throw new Error("Falta configurar el internet contratado y la red del WiFi");
   const equal = c.sharing_mode === "equal";
-  if (equal) await ensureQueueTypes(c);
   const body = {
     target: c.hotspot_network!,
     "max-limit": `${c.total_up_kbps}k/${c.total_down_kbps}k`,
@@ -394,7 +382,6 @@ export async function kickUserSessions(c: RouterConfig, username: string): Promi
 /** Grupo de equipos fijos que se reparten por igual (PCQ) bajo la cola padre. */
 export async function upsertPoolQueue(c: RouterConfig, q: { target: string; guaranteeKbps: number }) {
   if (!isConfigured(c) || !hasSharing(c)) return { simulated: true };
-  await ensureQueueTypes(c);
   const body = {
     target: q.target,
     "max-limit": "0/0",

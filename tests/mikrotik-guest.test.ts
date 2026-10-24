@@ -206,11 +206,9 @@ test("modo equitativo: el perfil no crea cola por usuario y el padre usa PCQ", a
   assert.deepEqual(prof.body, { name: "Igual", "rate-limit": "", "shared-users": "2" });
   await ensureParentQueue(eq);
   const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/queue/simple/*Q1").pop()!;
-  assert.equal(patch.body.queue, "portal-pcq-up/portal-pcq-down");
-  const typePut = seen.filter((x) => x.method === "PUT" && x.url === "/rest/queue/type").pop()!;
-  assert.deepEqual(typePut.body, { name: "portal-pcq-down", kind: "pcq", "pcq-classifier": "dst-address", "pcq-rate": "0", "pcq-limit": "50KiB", "pcq-total-limit": "2000KiB" });
-  const typePatch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/queue/type/*T1").pop()!;
-  assert.equal(typePatch.body["pcq-classifier"], "src-address");
+  assert.equal(patch.body.queue, "pcq-upload-default/pcq-download-default");
+  // Usa los tipos PCQ de fábrica: no crea ni cambia tipos de cola en el router
+  assert.ok(!seen.some((x) => x.url.startsWith("/rest/queue/type")));
 });
 
 test("grupo de equipos fijos con PCQ bajo el padre, y limpieza de colas que sobran", async () => {
@@ -219,7 +217,7 @@ test("grupo de equipos fijos con PCQ bajo el padre, y limpieza de colas que sobr
   const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/queue/simple").pop()!;
   assert.deepEqual(put.body, {
     name: "FIXED-POOL", target: "192.168.200.202/32,192.168.200.203/32", "max-limit": "0/0", "limit-at": "1024k/1024k",
-    parent: "PORTAL-ROOT", queue: "portal-pcq-up/portal-pcq-down", comment: "Portal: equipos fijos (reparto por igual)",
+    parent: "PORTAL-ROOT", queue: "pcq-upload-default/pcq-download-default", comment: "Portal: equipos fijos (reparto por igual)",
   });
   const removed = await removeStaleFixedQueues(shared, new Set(["FIXED-POOL"]));
   assert.equal(removed, 1);

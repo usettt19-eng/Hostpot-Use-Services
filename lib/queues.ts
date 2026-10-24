@@ -2,8 +2,9 @@
 
 export const PARENT_QUEUE = "PORTAL-ROOT";
 export const FIXED_POOL = "FIXED-POOL";
-export const PCQ_DOWN = "portal-pcq-down";
-export const PCQ_UP = "portal-pcq-up";
+// Tipos PCQ que RouterOS ya trae de fábrica (bajada por destino, subida por origen, sin tope por dirección): no se crea nada
+export const PCQ_DOWN = "pcq-download-default";
+export const PCQ_UP = "pcq-upload-default";
 
 export type SharingMode = "roles" | "equal";
 export const parseMode = (v: unknown): SharingMode => (v === "equal" ? "equal" : "roles");
