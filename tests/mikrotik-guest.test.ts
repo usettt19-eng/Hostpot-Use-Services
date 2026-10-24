@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, ensureParentFirst, lookupIpsByMac, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, ensureParentFirst, lookupIpsByMac, syncFixedAddressList, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -68,6 +68,13 @@ before(async () => {
         { ".id": "*R1", address: "192.168.200.60", "mac-address": "C0:95:CF:7D:E9:C9" },
         { ".id": "*R2", address: "192.168.200.61", "mac-address": "00:11:22:33:44:55", invalid: "true" },
       ]));
+      if (u.pathname === "/rest/ip/firewall/address-list" && req.method === "GET") return res.end(JSON.stringify([
+        { ".id": "*F1", list: "equipos-fijos", address: "192.168.200.200", comment: "Portal: xbox" },
+        { ".id": "*F2", list: "equipos-fijos", address: "192.168.200.99", comment: "Portal: viejo" },
+        { ".id": "*F3", list: "equipos-fijos", address: "192.168.200.98", comment: "puesta a mano" },
+      ]));
+      if (u.pathname === "/rest/ip/firewall/address-list" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*F9" }));
+      if (u.pathname.startsWith("/rest/ip/firewall/address-list/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
       if (u.pathname === "/rest/queue/simple/move" && req.method === "POST") return res.end("[]");
       if (u.pathname === "/rest/queue/simple" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*Q9" }));
       if (u.pathname === "/rest/queue/simple/*Q1" && req.method === "PATCH") return res.end("{}");
@@ -217,6 +224,21 @@ test("lookupIpsByMac une hosts del Hotspot, DHCP y ARP: el primero que conoce la
   assert.equal(m.get("C0:95:CF:7D:E9:C9"), "192.168.200.60");  // solo en ARP
   assert.equal(m.has("11:22:33:44:55:66"), false);             // arrendamiento sin asignar
   assert.equal(m.has("00:11:22:33:44:55"), false);             // ARP inválida
+});
+
+test("la lista equipos-fijos agrega lo que falta, quita solo lo que puso el portal y respeta lo puesto a mano", async () => {
+  const r = await syncFixedAddressList(cfg, [{ address: "192.168.200.200", name: "xbox" }, { address: "192.168.200.40", name: "tablet" }]);
+  assert.deepEqual(r, { added: 1, removed: 1 });
+  const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/firewall/address-list").pop()!;
+  assert.deepEqual(put.body, { list: "equipos-fijos", address: "192.168.200.40", comment: "Portal: tablet" });
+  assert.ok(seen.some((x) => x.method === "DELETE" && x.url === "/rest/ip/firewall/address-list/*F2"));
+  assert.ok(!seen.some((x) => x.method === "DELETE" && x.url.endsWith("/*F3")), "no toca la entrada puesta a mano");
+});
+
+test("un perfil de visitantes lleva address-list=visitantes y se conserva en el límite simple si el router rechaza el reparto", async () => {
+  await syncBandwidthProfile(cfg, "Existente", 5120, 2048, { maxDevices: 1, addressList: "visitantes" });
+  const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/ip/hotspot/user/profile/*P1").pop()!;
+  assert.equal((patch.body as Record<string, string>)["address-list"], "visitantes");
 });
 
 test("PORTAL-ROOT se mueve solo si la cola general del Hotspot va delante; una cola de usuario arriba no cuenta", async () => {

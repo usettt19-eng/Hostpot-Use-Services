@@ -30,7 +30,10 @@ test("con túnel agrega WireGuard, limita www-ssl al servidor y numera los bloqu
   const t = text(r);
   assert.match(t, /wireguard peers add .*endpoint-port=51820 allowed-address=10\.99\.0\.1\/32/);
   assert.match(t, /www-ssl certificate=portal-rest disabled=no address=10\.99\.0\.1\/32/);
-  assert.deepEqual(r.blocks.map((b) => b.title[0]), ["1", "2", "3", "4", "5", "6", "7", "8"]);
+  assert.deepEqual(r.blocks.map((b) => b.title[0]), ["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+  assert.match(t, /src-address-list=visitantes dst-address-list=equipos-fijos action=drop/);
+  assert.match(t, /chain=input src-address-list=visitantes protocol=tcp dst-port=21,22,23,443,8291,8728,8729 action=drop/);
+  assert.match(t, /address-list add list=redes-privadas address=192\.168\.0\.0\/16/);
 });
 
 test("rechaza datos que podrían inyectar comandos o son inválidos", () => {

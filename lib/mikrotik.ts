@@ -2,6 +2,7 @@
 import https from "node:https";
 import type { TLSSocket } from "node:tls";
 import { isIPv4, normalizeMac } from "./guest-utils.ts";
+import { FIXED_LIST, LIST_COMMENT_PREFIX } from "./isolation.ts";
 import { FIXED_POOL, FIXED_PREFIX, PARENT_QUEUE, PCQ_DOWN, PCQ_UP, buildRateLimit, fixedQueueName, type SharingMode } from "./queues.ts";
 
 // Si el tenant no tiene router configurado, opera en modo simulado (no falla, devuelve datos de ejemplo).
@@ -88,7 +89,8 @@ function rest<T>(c: RouterConfig, method: string, path: string, body?: unknown):
 /** El router rechazó el reparto en un perfil, pero el perfil quedó con el límite simple y sigue sirviendo. */
 export class SharingRejectedError extends Error {}
 
-export type ProfileTuning = { maxDevices?: number; minKbps?: number; burstKbps?: number };
+/** `addressList`: lista de direcciones del router a la que entran los usuarios del perfil al iniciar sesión (visitantes). */
+export type ProfileTuning = { maxDevices?: number; minKbps?: number; burstKbps?: number; addressList?: string };
 
 /**
  * Asegura un user-profile de Hotspot con su límite de velocidad y dispositivos. Con el reparto configurado, también
@@ -111,7 +113,8 @@ export async function syncBandwidthProfile(
     burstKbps: sharing ? tuning.burstKbps : 0,
   });
   const shared = String(Math.min(10, Math.max(1, Math.round(tuning.maxDevices ?? 1) || 1)));
-  const body: Record<string, string> = { "rate-limit": rate, "shared-users": shared, ...(sharing && !equal ? { "parent-queue": PARENT_QUEUE } : {}) };
+  const listField: Record<string, string> = tuning.addressList ? { "address-list": tuning.addressList } : {};
+  const body: Record<string, string> = { "rate-limit": rate, "shared-users": shared, ...listField, ...(sharing && !equal ? { "parent-queue": PARENT_QUEUE } : {}) };
   const existing = await rest<{ ".id": string; name: string }[]>(
     c, "GET", `/ip/hotspot/user/profile?name=${encodeURIComponent(name)}`
   );
@@ -123,7 +126,7 @@ export async function syncBandwidthProfile(
   } catch (e) {
     if (!sharing) throw e;
     // El router rechazó el reparto (padre, mínimo o ráfaga): el perfil no debe quedar sin actualizar, así que se deja con el límite simple de siempre
-    await apply({ "rate-limit": buildRateLimit({ downloadKbps, uploadKbps }), "shared-users": shared });
+    await apply({ "rate-limit": buildRateLimit({ downloadKbps, uploadKbps }), "shared-users": shared, ...listField });
     throw new SharingRejectedError(`El router rechazó el reparto en el perfil «${name}» (${e instanceof Error ? e.message : "error"}); quedó con el límite simple`);
   }
   return { simulated: false };
@@ -485,4 +488,28 @@ export async function lookupIpsByMac(c: RouterConfig): Promise<Map<string, strin
     }
   }
   return out;
+}
+
+/**
+ * Deja la lista `equipos-fijos` del firewall con exactamente las IP dadas. Solo toca las entradas que creó el portal (comentario
+ * «Portal: …»): las que el administrador agregó a mano se respetan. Devuelve cuántas agregó y quitó.
+ */
+export async function syncFixedAddressList(c: RouterConfig, entries: { address: string; name: string }[]): Promise<{ added: number; removed: number }> {
+  if (!isConfigured(c)) return { added: 0, removed: 0 };
+  const want = new Map(entries.map((e) => [e.address, e.name]));
+  const have = await rest<Record<string, string>[]>(c, "GET", `/ip/firewall/address-list?list=${encodeURIComponent(FIXED_LIST)}`);
+  const present = new Set<string>();
+  let removed = 0;
+  for (const r of have) {
+    const mine = (r.comment ?? "").startsWith(LIST_COMMENT_PREFIX);
+    if (want.has(r.address) && !present.has(r.address)) { present.add(r.address); continue; }
+    if (mine && r[".id"]) { await rest(c, "DELETE", `/ip/firewall/address-list/${encodeURIComponent(r[".id"])}`); removed++; }
+  }
+  let added = 0;
+  for (const [address, name] of want) {
+    if (present.has(address)) continue;
+    await rest(c, "PUT", "/ip/firewall/address-list", { list: FIXED_LIST, address, comment: `${LIST_COMMENT_PREFIX} ${name}`.slice(0, 100) });
+    added++;
+  }
+  return { added, removed };
 }

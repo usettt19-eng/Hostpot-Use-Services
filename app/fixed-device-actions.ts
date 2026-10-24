@@ -5,7 +5,13 @@ import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { requireAdminTenant } from "@/lib/portal";
 import { addBypassBinding, hasSharing, isConfigured, removeIpBinding } from "@/lib/mikrotik";
 import { parseFixedDevice } from "@/lib/fixed-devices";
-import { syncFixedQueues } from "@/lib/sharing";
+import { syncFixedAddressListFor, syncFixedQueues } from "@/lib/sharing";
+
+/** Mantiene la lista `equipos-fijos` del firewall al día; si falla, no impide guardar el equipo. */
+async function refreshFixedList(tenantId: string, cfg: Parameters<typeof syncFixedAddressListFor>[1]) {
+  if (!isConfigured(cfg)) return;
+  await syncFixedAddressListFor(tenantId, cfg).catch((e) => console.error("lista equipos-fijos:", e instanceof Error ? e.message : "error"));
+}
 
 export type FixedState = { error?: string; ok?: string } | null;
 
@@ -45,6 +51,7 @@ export async function addFixedDevice(_: FixedState, fd: FormData): Promise<Fixed
     const speeds = parsed.data.max_down_kbps || parsed.data.max_up_kbps || parsed.data.min_kbps;
     return { error: speeds ? "No se pudo guardar el equipo. ¿Está aplicada la migración 0014 en Supabase?" : "No se pudo guardar el equipo" };
   }
+  await refreshFixedList(ctx.tenantId, cfg);
   // Con reparto configurado, el equipo entra a su cola propia o al grupo que se reparte por igual
   let note = "";
   if (isConfigured(cfg) && hasSharing(cfg)) {
@@ -75,6 +82,7 @@ export async function removeFixedDevice(fd: FormData) {
       console.error("removeFixedDevice router:", e instanceof Error ? e.message : "error"));
   }
   await db.from("fixed_devices").delete().eq("id", id).eq("tenant_id", ctx.tenantId);
+  await refreshFixedList(ctx.tenantId, cfg);
   if (isConfigured(cfg) && hasSharing(cfg)) {
     await syncFixedQueues(ctx.tenantId, cfg).catch((e) =>
       console.error("removeFixedDevice colas:", e instanceof Error ? e.message : "error"));
@@ -107,6 +115,7 @@ export async function updateFixedDevice(_: FixedState, fd: FormData): Promise<Fi
   }
   let note = "";
   const cfg = await getRouterConfig(ctx.tenantId);
+  await refreshFixedList(ctx.tenantId, cfg);
   if (isConfigured(cfg) && hasSharing(cfg)) {
     try {
       const r = await syncFixedQueues(ctx.tenantId, cfg);

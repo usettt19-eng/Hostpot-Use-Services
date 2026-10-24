@@ -1,7 +1,9 @@
 import { createAdminClient, getRouterConfig } from "@/lib/supabase";
-import { ensureParentFirst, lookupIpsByMac, ensureParentQueue, hasSharing, removeStaleFixedQueues, syncBandwidthProfile, upsertFixedQueue, upsertPoolQueue, type RouterConfig } from "@/lib/mikrotik";
+import { ensureParentFirst, lookupIpsByMac, syncFixedAddressList, ensureParentQueue, hasSharing, removeStaleFixedQueues, syncBandwidthProfile, upsertFixedQueue, upsertPoolQueue, type RouterConfig } from "@/lib/mikrotik";
 import { FIXED_POOL, fixedQueueName, poolGuarantee, poolTarget, splitFixed } from "@/lib/queues";
 import { selectPlans, tuningOf } from "@/lib/plans";
+import { VISITOR_LIST } from "@/lib/isolation";
+import { DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 
 export type SharingResult = { profiles: number; profilesTotal: number; fixed: number; fixedWithoutIp: number; errors: string[] };
 
@@ -15,12 +17,15 @@ export async function applySharing(tenantId: string, cfg: RouterConfig): Promise
   if (sharing) await ensureParentQueue(cfg); // primero el padre: los perfiles cuelgan de él
 
   const db = createAdminClient();
-  const plans = await selectPlans((cols) => db.from("bandwidth_profiles").select(cols).eq("tenant_id", tenantId));
+  const plans = await selectPlans((cols) => db.from("bandwidth_profiles").select(cols).eq("tenant_id", tenantId), "role");
+  // El perfil de menor privilegio (el de los visitantes) marca a sus usuarios en la lista `visitantes` para aislarlos
+  const { data: t } = await db.from("tenants").select("type").eq("id", tenantId).maybeSingle();
+  const guestRole = DEFAULT_ROLE[(t?.type ?? "") as EstablishmentType];
   let profiles = 0;
   const errors: string[] = []; // lo que el router rechazó, para mostrarlo al dueño
   for (const p of plans) {
     try {
-      await syncBandwidthProfile(cfg, p.name, p.download_kbps, p.upload_kbps, tuningOf(p));
+      await syncBandwidthProfile(cfg, p.name, p.download_kbps, p.upload_kbps, { ...tuningOf(p), ...(guestRole && p.role === guestRole ? { addressList: VISITOR_LIST } : {}) });
       profiles++;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "error";
@@ -31,7 +36,23 @@ export async function applySharing(tenantId: string, cfg: RouterConfig): Promise
 
   const f = sharing ? await syncFixedQueues(tenantId, cfg) : { individual: 0, pool: 0, withoutIp: 0, errors: [] as string[] };
   errors.push(...f.errors);
+  await syncFixedAddressListFor(tenantId, cfg).catch((e) => console.error("applySharing lista fijos:", e instanceof Error ? e.message : "error"));
   return { profiles, profilesTotal: plans.length, fixed: f.individual + f.pool, fixedWithoutIp: f.withoutIp, errors };
+}
+
+/**
+ * Deja la lista `equipos-fijos` del router con la IP de cada equipo fijo (la escrita o la que el router tiene para su MAC).
+ * Sirve para que el firewall impida que los visitantes los alcancen. Funciona con o sin reparto de velocidad. Solo servidor.
+ */
+export async function syncFixedAddressListFor(tenantId: string, cfg: RouterConfig): Promise<{ added: number; removed: number }> {
+  const { data, error } = await createAdminClient().from("fixed_devices").select("mac, name, ip").eq("tenant_id", tenantId);
+  if (error) return { added: 0, removed: 0 };
+  const rows = data ?? [];
+  const found = rows.some((d) => !d.ip) ? await lookupIpsByMac(cfg).catch(() => new Map<string, string>()) : new Map<string, string>();
+  const entries = rows
+    .map((d) => ({ address: d.ip ?? found.get(String(d.mac).toUpperCase()) ?? "", name: String(d.name) }))
+    .filter((e) => e.address);
+  return syncFixedAddressList(cfg, entries);
 }
 
 /** Garantía de un equipo fijo cuando no se indica otra. */
@@ -118,6 +139,7 @@ export async function keepParentFirstAll(): Promise<{ checked: number; moved: nu
       const sig = ipless.map((d) => `${d.mac}=${found.get(String(d.mac).toUpperCase()) ?? ""}`).sort().join(",");
       if (detectedSignature.get(tenantId) === sig) continue;
       await syncFixedQueues(tenantId, cfg);
+      await syncFixedAddressListFor(tenantId, cfg);
       detectedSignature.set(tenantId, sig);
       refreshed++;
     } catch (e) {

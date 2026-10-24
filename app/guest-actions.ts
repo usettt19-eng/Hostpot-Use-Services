@@ -13,6 +13,7 @@ import { pickLocale } from "@/lib/portal-settings";
 import { minutesOpenLeft, nextOpeningText, type Window } from "@/lib/schedule";
 import { allow } from "@/lib/rate-limit";
 import { selectPlans, tuningOf } from "@/lib/plans";
+import { VISITOR_LIST } from "@/lib/isolation";
 import { isTenantSuspended } from "@/lib/tenant-status";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean } | null;
@@ -94,7 +95,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
     ? {
         findHost: (ip) => findHostByAddress(cfg, ip),
         // Se reenvían los dispositivos, el mínimo y la ráfaga del plan para no pisar lo que configuró el administrador
-        ensureProfile: async (name, d, u) => { await syncBandwidthProfileSafe(cfg, name, d, u, tuningOf(plan)); },
+        ensureProfile: async (name, d, u) => { await syncBandwidthProfileSafe(cfg, name, d, u, { ...tuningOf(plan), addressList: VISITOR_LIST }); },
         createGuestUser: (u) => createGuestUser(cfg, u),
       }
     : null;

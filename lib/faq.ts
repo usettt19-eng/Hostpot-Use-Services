@@ -166,6 +166,14 @@ export const FAQ: FaqGroup[] = [
   },
   {
     id: "fijos", title: "Equipos fijos", items: [
+      {
+        q: "¿Los visitantes pueden ver mis equipos fijos o entrar al router?",
+        a: [
+          "Si el router tiene las reglas de aislamiento (bloque «Aislar a los visitantes» de la pantalla del router), no: los visitantes no alcanzan los equipos fijos, las otras redes privadas del local ni la administración del router.",
+          "Las listas del firewall las mantiene el portal: «visitantes» (los usuarios del perfil de menor privilegio) y «equipos-fijos» (la IP de cada equipo, detectada por su MAC). Se actualizan al aplicar el reparto y al registrar, editar o quitar un equipo.",
+          "Límite: el router no ve el tráfico entre dos equipos conectados por WiFi al mismo punto de acceso. Para eso activa el aislamiento de clientes (o una red de invitados) en el punto de acceso.",
+        ],
+      },
       { q: "¿Cómo conecto una impresora, una pantalla o un televisor?", a: [
         "Estos equipos no pueden iniciar sesión en un portal. En **Equipos fijos** escribe su dirección MAC, un nombre y, si quieres, su ubicación y motivo; al guardar quedan con acceso directo. En **Registrados** ves si la excepción sigue activa en el router y puedes **Quitar** las que ya no necesitas.",
         "Un equipo fijo se salta el portal y sus límites: registra solo equipos tuyos.",

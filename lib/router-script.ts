@@ -1,6 +1,8 @@
 // Genera las instrucciones para configurar un MikroTik (RouterOS 7) como Hotspot del portal.
 // Función pura: valida cada dato (el texto se pega en la terminal del router) y devuelve bloques para pegar uno a uno.
 
+import { FIXED_LIST, PRIVATE_LIST, VISITOR_LIST } from "./isolation.ts";
+
 export type RouterScriptInput = {
   slug: string;
   portalHost: string;
@@ -123,13 +125,28 @@ export function buildRouterScript(i: RouterScriptInput): ScriptResult {
     ],
     "Mira el campo html-directory del primer comando: si es «flash/hotspot», cambia dst-path a \"flash/hotspot/login.html\". El archivo final debe pesar menos de 1 KB.");
 
-  add(`${n + 4}. Verificar`, "Debe verse el Hotspot y el DHCP sin una X (activos).", [
+  add(`${n + 4}. Aislar a los visitantes`,
+    "Los visitantes (usuarios del perfil de menor privilegio) no pueden llegar a los equipos fijos, a otras redes privadas del local ni a la administración del router. Las listas «visitantes» y «equipos-fijos» las llena el portal (al aplicar el reparto en la pantalla del router, y al registrar o editar equipos fijos).",
+    [
+      `/interface bridge settings set use-ip-firewall=yes`,
+      `/ip firewall address-list add list=${PRIVATE_LIST} address=10.0.0.0/8 comment="portal"`,
+      `/ip firewall address-list add list=${PRIVATE_LIST} address=172.16.0.0/12 comment="portal"`,
+      `/ip firewall address-list add list=${PRIVATE_LIST} address=192.168.0.0/16 comment="portal"`,
+      `/ip firewall filter add chain=forward src-address-list=${VISITOR_LIST} dst-address-list=${FIXED_LIST} action=drop comment="portal: visitantes no ven equipos fijos"`,
+      `/ip firewall filter add chain=forward src-address-list=${VISITOR_LIST} dst-address-list=${PRIVATE_LIST} action=drop comment="portal: visitantes no entran a redes internas"`,
+      `/ip firewall filter add chain=input src-address-list=${VISITOR_LIST} protocol=tcp dst-port=21,22,23,443,8291,8728,8729 action=drop comment="portal: visitantes no administran el router"`,
+    ],
+    "Actívalo con Safe Mode. Si ya tienes reglas generales de «accept» arriba en el firewall, mueve estas tres antes de ellas. El router no ve el tráfico entre dos equipos conectados por WiFi al mismo punto de acceso: para eso activa el aislamiento de clientes (o una red de invitados) en el punto de acceso.");
+
+  add(`${n + 5}. Verificar`, "Debe verse el Hotspot y el DHCP sin una X (activos).", [
     `/ip hotspot print`,
     `/ip dhcp-server print`,
     `/ip hotspot walled-garden print`,
   ]);
 
-  add(`${n + 5}. Deshacer`, "Quita lo que creó este script (no toca el túnel ni el usuario del portal).", [
+  add(`${n + 6}. Deshacer`, "Quita lo que creó este script (no toca el túnel ni el usuario del portal).", [
+    `/ip firewall filter remove [find where comment~"^portal:"]`,
+    `/ip firewall address-list remove [find where list=${PRIVATE_LIST} comment="portal"]`,
     `/ip hotspot walled-garden remove [find comment="portal"]`,
     `/ip hotspot walled-garden ip remove [find comment="portal"]`,
     `/ip hotspot remove [find name=hotspot-portal]`,
