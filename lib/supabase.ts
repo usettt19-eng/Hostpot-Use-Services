@@ -39,7 +39,7 @@ export async function getRouterConfig(tenantId: string) {
     .maybeSingle();
   // Reparto del ancho de banda (migración 0014): consulta aparte para que todo siga funcionando si aún no se aplicó
   const share = await createAdminClient()
-    .from("tenant_router_credentials").select("total_down_kbps, total_up_kbps, hotspot_network").eq("tenant_id", tenantId).maybeSingle();
+    .from("tenant_router_credentials").select("total_down_kbps, total_up_kbps, hotspot_network, sharing_mode").eq("tenant_id", tenantId).maybeSingle();
   return {
     router_url: data?.router_url ?? null,
     router_user: data?.router_user ?? null,
@@ -48,5 +48,6 @@ export async function getRouterConfig(tenantId: string) {
     total_down_kbps: share.error ? null : (share.data?.total_down_kbps ?? null),
     total_up_kbps: share.error ? null : (share.data?.total_up_kbps ?? null),
     hotspot_network: share.error ? null : (share.data?.hotspot_network ?? null),
+    sharing_mode: share.error || share.data?.sharing_mode !== "equal" ? ("roles" as const) : ("equal" as const),
   };
 }

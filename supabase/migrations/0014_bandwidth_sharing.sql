@@ -17,6 +17,13 @@ do $$ begin
   end if;
 end $$;
 
+alter table tenant_router_credentials add column if not exists sharing_mode text not null default 'roles';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'trc_sharing_mode_check') then
+    alter table tenant_router_credentials add constraint trc_sharing_mode_check check (sharing_mode in ('roles', 'equal'));
+  end if;
+end $$;
+
 -- Mínimo garantizado y ráfaga por rol (kbps; 0 = sin ráfaga)
 alter table bandwidth_profiles add column if not exists min_kbps integer not null default 0;
 alter table bandwidth_profiles add column if not exists burst_kbps integer not null default 0;

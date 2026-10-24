@@ -1,7 +1,7 @@
 // Cliente RouterOS v7 REST (https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API)
 import https from "node:https";
 import type { TLSSocket } from "node:tls";
-import { PARENT_QUEUE, buildRateLimit, fixedQueueName } from "./queues.ts";
+import { FIXED_POOL, FIXED_PREFIX, PARENT_QUEUE, PCQ_DOWN, PCQ_UP, buildRateLimit, fixedQueueName, type SharingMode } from "./queues.ts";
 
 // Si el tenant no tiene router configurado, opera en modo simulado (no falla, devuelve datos de ejemplo).
 
@@ -15,6 +15,8 @@ export type RouterConfig = {
   total_down_kbps?: number | null;
   total_up_kbps?: number | null;
   hotspot_network?: string | null;
+  /** «roles»: cada rol con su velocidad (por defecto). «equal»: todos por igual con PCQ. */
+  sharing_mode?: SharingMode;
 };
 
 /** ¿Este establecimiento tiene configurado el reparto del ancho de banda? */
@@ -97,13 +99,15 @@ export async function syncBandwidthProfile(
 ) {
   if (!isConfigured(c)) return { simulated: true };
   const sharing = hasSharing(c);
-  const rate = buildRateLimit({
+  const equal = sharing && c.sharing_mode === "equal";
+  // Modo equitativo: el perfil no crea cola por usuario; el padre (PCQ) reparte por igual entre todos
+  const rate = equal ? "" : buildRateLimit({
     downloadKbps, uploadKbps,
     minKbps: sharing ? tuning.minKbps : 0,
     burstKbps: sharing ? tuning.burstKbps : 0,
   });
   const shared = String(Math.min(10, Math.max(1, Math.round(tuning.maxDevices ?? 1) || 1)));
-  const body: Record<string, string> = { "rate-limit": rate, "shared-users": shared, ...(sharing ? { "parent-queue": PARENT_QUEUE } : {}) };
+  const body: Record<string, string> = { "rate-limit": rate, "shared-users": shared, ...(sharing && !equal ? { "parent-queue": PARENT_QUEUE } : {}) };
   const existing = await rest<{ ".id": string; name: string }[]>(
     c, "GET", `/ip/hotspot/user/profile?name=${encodeURIComponent(name)}`
   );
@@ -115,13 +119,27 @@ export async function syncBandwidthProfile(
   return { simulated: false };
 }
 
+/** Tipos de cola PCQ (reparto por igual entre direcciones): bajada por destino, subida por origen. */
+async function ensureQueueTypes(c: RouterConfig) {
+  const types: [string, string][] = [[PCQ_DOWN, "dst-address"], [PCQ_UP, "src-address"]];
+  for (const [name, classifier] of types) {
+    const body = { kind: "pcq", "pcq-classifier": classifier, "pcq-rate": "0", "pcq-limit": "50KiB", "pcq-total-limit": "2000KiB" };
+    const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/type?name=${encodeURIComponent(name)}`);
+    if (found.length) await rest(c, "PATCH", `/queue/type/${found[0][".id"]}`, body);
+    else await rest(c, "PUT", "/queue/type", { name, ...body });
+  }
+}
+
 /** Crea o actualiza la cola padre con el internet contratado. Va antes que los perfiles que cuelgan de ella. */
 export async function ensureParentQueue(c: RouterConfig) {
   if (!isConfigured(c)) return { simulated: true };
   if (!hasSharing(c)) throw new Error("Falta configurar el internet contratado y la red del WiFi");
+  const equal = c.sharing_mode === "equal";
+  if (equal) await ensureQueueTypes(c);
   const body = {
     target: c.hotspot_network!,
     "max-limit": `${c.total_up_kbps}k/${c.total_down_kbps}k`,
+    queue: equal ? `${PCQ_UP}/${PCQ_DOWN}` : "default-small/default-small",
     comment: "Portal: reparto del ancho de banda del WiFi",
   };
   const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/simple?name=${encodeURIComponent(PARENT_QUEUE)}`);
@@ -370,4 +388,37 @@ export async function kickUserSessions(c: RouterConfig, username: string): Promi
   const mine = rows.filter((r) => r.user === username && r[".id"]);
   for (const r of mine) await rest(c, "DELETE", `/ip/hotspot/active/${r[".id"]}`);
   return mine.length;
+}
+
+
+/** Grupo de equipos fijos que se reparten por igual (PCQ) bajo la cola padre. */
+export async function upsertPoolQueue(c: RouterConfig, q: { target: string; guaranteeKbps: number }) {
+  if (!isConfigured(c) || !hasSharing(c)) return { simulated: true };
+  await ensureQueueTypes(c);
+  const body = {
+    target: q.target,
+    "max-limit": "0/0",
+    "limit-at": `${Math.max(0, q.guaranteeKbps)}k/${Math.max(0, q.guaranteeKbps)}k`,
+    parent: PARENT_QUEUE,
+    queue: `${PCQ_UP}/${PCQ_DOWN}`,
+    comment: "Portal: equipos fijos (reparto por igual)",
+  };
+  const found = await rest<{ ".id": string }[]>(c, "GET", `/queue/simple?name=${encodeURIComponent(FIXED_POOL)}`);
+  if (found.length) await rest(c, "PATCH", `/queue/simple/${found[0][".id"]}`, body);
+  else await rest(c, "PUT", "/queue/simple", { name: FIXED_POOL, ...body });
+  return { simulated: false };
+}
+
+/** Quita las colas «FIXED-…» que ya no corresponden a ningún equipo (borrados, cambiados de grupo o sin IP). `keep` = nombres que se conservan. */
+export async function removeStaleFixedQueues(c: RouterConfig, keep: Set<string>): Promise<number> {
+  if (!isConfigured(c)) return 0;
+  const all = await rest<Record<string, string>[]>(c, "GET", "/queue/simple");
+  let n = 0;
+  for (const q of all) {
+    if (q.name?.startsWith(FIXED_PREFIX) && !keep.has(q.name) && q[".id"]) {
+      await rest(c, "DELETE", `/queue/simple/${q[".id"]}`);
+      n++;
+    }
+  }
+  return n;
 }

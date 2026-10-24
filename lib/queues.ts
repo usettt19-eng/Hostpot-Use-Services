@@ -1,6 +1,12 @@
 // Reparto del ancho de banda con colas de RouterOS. Funciones puras (el router se toca en lib/mikrotik.ts).
 
 export const PARENT_QUEUE = "PORTAL-ROOT";
+export const FIXED_POOL = "FIXED-POOL";
+export const PCQ_DOWN = "portal-pcq-down";
+export const PCQ_UP = "portal-pcq-up";
+
+export type SharingMode = "roles" | "equal";
+export const parseMode = (v: unknown): SharingMode => (v === "equal" ? "equal" : "roles");
 export const FIXED_PREFIX = "FIXED-";
 
 export type RateInput = { downloadKbps: number; uploadKbps: number; minKbps?: number; burstKbps?: number };
@@ -60,3 +66,30 @@ export function guaranteeFit(totalKbps: number, minKbps: number): number | null 
 
 /** Nombre de la cola de un equipo fijo. */
 export const fixedQueueName = (mac: string) => `${FIXED_PREFIX}${mac.toUpperCase()}`;
+
+export type FixedDeviceQ = { mac: string; ip: string | null; max_down_kbps: number | null; max_up_kbps: number | null; min_kbps: number | null };
+
+/**
+ * Reparte los equipos fijos entre los que tienen cola propia (si el administrador les puso un tope) y el grupo
+ * que se reparte por igual con PCQ. Sin IP fija no se les puede poner cola.
+ */
+export function splitFixed(devices: FixedDeviceQ[]) {
+  const individual: (FixedDeviceQ & { ip: string })[] = [];
+  const pool: (FixedDeviceQ & { ip: string })[] = [];
+  let withoutIp = 0;
+  for (const d of devices) {
+    if (!d.ip) { withoutIp++; continue; }
+    const own = (d.max_down_kbps ?? 0) > 0 || (d.max_up_kbps ?? 0) > 0;
+    (own ? individual : pool).push({ ...d, ip: d.ip });
+  }
+  return { individual, pool, withoutIp };
+}
+
+/** Objetivo de la cola del grupo: las IP de sus equipos separadas por coma. */
+export const poolTarget = (pool: { ip: string }[]) => [...new Set(pool.map((d) => `${d.ip}/32`))].join(",");
+
+/** Garantía del grupo: la suma de las de sus equipos, sin pasar de la cuarta parte del internet contratado. */
+export function poolGuarantee(pool: { min_kbps: number | null }[], defaultMin: number, totalKbps: number): number {
+  const sum = pool.reduce((n, d) => n + (d.min_kbps ?? defaultMin), 0);
+  return Math.min(sum, Math.floor(totalKbps / 4));
+}

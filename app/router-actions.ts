@@ -9,7 +9,7 @@ import { encryptSecret } from "@/lib/crypto";
 import { validateRouterInput } from "@/lib/router-config";
 import { isConfigured, testConnection } from "@/lib/mikrotik";
 import { applySharing } from "@/lib/sharing";
-import { mbpsToKbps, parseNetwork, validateCapacity } from "@/lib/queues";
+import { mbpsToKbps, parseMode, parseNetwork, validateCapacity } from "@/lib/queues";
 import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { buildRouterScript, toRsc, type ScriptBlock } from "@/lib/router-script";
 
@@ -116,11 +116,12 @@ export async function saveCapacity(_: CapacityState, fd: FormData): Promise<Capa
   const net = parseNetwork(f(fd, "network"));
   if (!net.ok) return { error: net.error };
 
+  const mode = parseMode(f(fd, "mode"));
   const db = createAdminClient();
   const { data: row } = await db.from("tenant_router_credentials").select("tenant_id").eq("tenant_id", id).maybeSingle();
   if (!row) return { error: "Primero guarda la conexión del portal con el router (más abajo en esta pantalla)" };
   const { error } = await db.from("tenant_router_credentials").update({
-    total_down_kbps: mbpsToKbps(down), total_up_kbps: mbpsToKbps(up), hotspot_network: net.value,
+    total_down_kbps: mbpsToKbps(down), total_up_kbps: mbpsToKbps(up), hotspot_network: net.value, sharing_mode: mode,
   }).eq("tenant_id", id);
   if (error) {
     console.error("saveCapacity:", error.code ?? "error");
@@ -133,7 +134,7 @@ export async function saveCapacity(_: CapacityState, fd: FormData): Promise<Capa
   try {
     const r = await applySharing(id, cfg);
     const extra = r.fixedWithoutIp ? ` ${r.fixedWithoutIp} equipo(s) fijo(s) sin IP quedaron sin cola propia.` : "";
-    return { ok: `Aplicado en el router: cola padre ${down} / ${up} Mbps, ${r.profiles} de ${r.profilesTotal} perfiles y ${r.fixed} equipo(s) fijo(s).${extra}` };
+    return { ok: `Aplicado en el router: cola padre ${down} / ${up} Mbps (${mode === "equal" ? "reparto equitativo" : "reparto por rol"}), ${r.profiles} de ${r.profilesTotal} perfiles y ${r.fixed} equipo(s) fijo(s).${extra}` };
   } catch (e) {
     return { warn: `Guardado, pero el router rechazó el cambio: ${e instanceof Error ? e.message : "error"}` };
   }

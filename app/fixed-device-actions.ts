@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { requireAdminTenant } from "@/lib/portal";
-import { addBypassBinding, isConfigured, removeIpBinding } from "@/lib/mikrotik";
+import { addBypassBinding, hasSharing, isConfigured, removeIpBinding } from "@/lib/mikrotik";
 import { parseFixedDevice } from "@/lib/fixed-devices";
+import { syncFixedQueues } from "@/lib/sharing";
 
 export type FixedState = { error?: string; ok?: string } | null;
 
@@ -15,6 +16,7 @@ export async function addFixedDevice(_: FixedState, fd: FormData): Promise<Fixed
   const ctx = await requireAdminTenant();
   const parsed = parseFixedDevice({
     mac: str(fd, "mac"), name: str(fd, "name"), ip: str(fd, "ip"), location: str(fd, "location"), reason: str(fd, "reason"),
+    maxDownMbps: str(fd, "max_down"), maxUpMbps: str(fd, "max_up"), minMbps: str(fd, "min"),
   });
   if (!parsed.ok) return { error: parsed.error };
   const db = createAdminClient();
@@ -40,10 +42,22 @@ export async function addFixedDevice(_: FixedState, fd: FormData): Promise<Fixed
   if (error) {
     if (bindingId) await removeIpBinding(cfg, bindingId).catch(() => {});
     console.error("addFixedDevice db:", error.message);
-    return { error: "No se pudo guardar el equipo" };
+    const speeds = parsed.data.max_down_kbps || parsed.data.max_up_kbps || parsed.data.min_kbps;
+    return { error: speeds ? "No se pudo guardar el equipo. ¿Está aplicada la migración 0014 en Supabase?" : "No se pudo guardar el equipo" };
+  }
+  // Con reparto configurado, el equipo entra a su cola propia o al grupo que se reparte por igual
+  let note = "";
+  if (isConfigured(cfg) && hasSharing(cfg)) {
+    try {
+      await syncFixedQueues(ctx.tenantId, cfg);
+      note = parsed.data.ip ? "" : " Sin IP fija no se le puede aplicar un límite de velocidad.";
+    } catch (e) {
+      console.error("addFixedDevice colas:", e instanceof Error ? e.message : "error");
+      note = " No se pudo ajustar su velocidad en el router; usa «Aplicar» en la pantalla del router para reintentar.";
+    }
   }
   revalidatePath("/admin/fixed-devices");
-  return { ok: "Equipo registrado" };
+  return { ok: `Equipo registrado.${note}` };
 }
 
 /** Quita un equipo fijo: primero la excepción del router, luego el registro. */
@@ -61,5 +75,9 @@ export async function removeFixedDevice(fd: FormData) {
       console.error("removeFixedDevice router:", e instanceof Error ? e.message : "error"));
   }
   await db.from("fixed_devices").delete().eq("id", id).eq("tenant_id", ctx.tenantId);
+  if (isConfigured(cfg) && hasSharing(cfg)) {
+    await syncFixedQueues(ctx.tenantId, cfg).catch((e) =>
+      console.error("removeFixedDevice colas:", e instanceof Error ? e.message : "error"));
+  }
   revalidatePath("/admin/fixed-devices");
 }

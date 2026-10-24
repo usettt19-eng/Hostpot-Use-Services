@@ -80,6 +80,21 @@ export const FAQ: FaqGroup[] = [
     ],
   },
   {
+    id: "reparto", title: "Reparto del ancho de banda", items: [
+      { q: "¿Qué son el mínimo garantizado y la ráfaga?", a: [
+        "En **Ancho de banda**, cada rol tiene un **máximo** (lo más que puede usar), un **mínimo** (lo que siempre se le garantiza aunque la red esté llena de gente) y, si quieres, una **ráfaga**: un empujón por encima del máximo durante unos segundos, útil para que las páginas carguen rápido.",
+        "La columna del mínimo avisa cuántas personas caben con su garantía a la vez. Si ese número es muy bajo para tu local, baja el mínimo o sube el máximo del internet contratado.",
+      ] },
+      { q: "No veo las columnas de mínimo y ráfaga", a: [
+        "Aparecen cuando el administrador de la plataforma ya indicó cuánto internet contrató tu establecimiento y eligió el reparto «por rol». Mientras tanto, cada persona solo tiene su máximo. Si tu establecimiento usa el reparto «equitativo», todos comparten por igual y no hay velocidades por rol.",
+      ] },
+      { q: "¿Cómo limito la velocidad de una impresora, una pantalla o una cámara?", a: [
+        "En **Equipos fijos**, al registrarlo abre «Límite de velocidad propio» y escribe su máximo de bajada y subida (en Mbps) y, si quieres, un mínimo garantizado. **Necesita IP fija.**",
+        "Si no pones límites, el equipo entra al **grupo de equipos fijos**: todos ellos se reparten por igual lo que les toca y nunca dejan sin internet a los clientes. La tabla muestra «Propio» o «Grupo» en la columna Velocidad.",
+      ] },
+    ],
+  },
+  {
     id: "portal", title: "Portal de bienvenida", items: [
       { q: "¿Cómo cambio el logo, los colores y los textos?", a: [
         "En **Diseño y horarios**. Puedes cambiar título, subtítulo, texto del botón, pie, plantilla, colores, bordes, tipografía, logo e imagen de fondo (PNG, JPG o WebP). Los textos tienen versión en español y en inglés (botones **ES** y **EN**) y puedes ver el resultado en escritorio y en móvil antes de publicar.",

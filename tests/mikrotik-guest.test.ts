@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, upsertFixedQueue, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -33,10 +33,15 @@ before(async () => {
       if (u.pathname === "/rest/ip/hotspot/user/profile/*P1" && req.method === "PATCH") return res.end(JSON.stringify({}));
       if (u.pathname === "/rest/queue/simple" && req.method === "GET") {
         const n = u.searchParams.get("name");
+        if (n === null) return res.end(JSON.stringify([{ ".id": "*Q1", name: "PORTAL-ROOT" }, { ".id": "*Q7", name: "FIXED-OLD" }, { ".id": "*Q8", name: "FIXED-POOL" }, { ".id": "*Q6", name: "ROOT" }]));
         return res.end(JSON.stringify(n === "PORTAL-ROOT" || n === "FIXED-AA:BB:CC:DD:EE:01" ? [{ ".id": "*Q1", name: n }] : []));
       }
+      if (u.pathname === "/rest/queue/type" && req.method === "GET") return res.end(JSON.stringify(u.searchParams.get("name") === "portal-pcq-up" ? [{ ".id": "*T1", name: "portal-pcq-up" }] : []));
+      if (u.pathname === "/rest/queue/type" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*T9" }));
+      if (u.pathname === "/rest/queue/type/*T1" && req.method === "PATCH") return res.end("{}");
+      if (u.pathname.startsWith("/rest/queue/simple/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
       if (u.pathname === "/rest/queue/simple" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*Q9" }));
-      if (u.pathname === "/rest/queue/simple/*Q1" && (req.method === "PATCH" || req.method === "DELETE")) { res.statusCode = req.method === "DELETE" ? 204 : 200; return res.end(req.method === "DELETE" ? undefined : "{}"); }
+      if (u.pathname === "/rest/queue/simple/*Q1" && req.method === "PATCH") return res.end("{}");
       if (u.pathname === "/rest/ip/hotspot/host") {
         return res.end(JSON.stringify([{ ".id": "*1", address: "192.168.200.198", "mac-address": "aa:bb:cc:dd:ee:ff", authorized: "false", bypassed: "false", server: "hotspot-test" }]));
       }
@@ -192,4 +197,33 @@ test("equipos fijos: cola propia colgada del padre, con tope opcional y garantí
   assert.equal(upd.body["limit-at"], "100k/100k"); // la garantía no supera el tope
   await removeFixedQueue(shared, "AA:BB:CC:DD:EE:01");
   assert.ok(seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q1"));
+});
+
+test("modo equitativo: el perfil no crea cola por usuario y el padre usa PCQ", async () => {
+  const eq = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24", sharing_mode: "equal" as const };
+  await syncBandwidthProfile(eq, "Igual", 10240, 5120, { maxDevices: 2, minKbps: 1536 });
+  const prof = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/user/profile").pop()!;
+  assert.deepEqual(prof.body, { name: "Igual", "rate-limit": "", "shared-users": "2" });
+  await ensureParentQueue(eq);
+  const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/queue/simple/*Q1").pop()!;
+  assert.equal(patch.body.queue, "portal-pcq-up/portal-pcq-down");
+  const typePut = seen.filter((x) => x.method === "PUT" && x.url === "/rest/queue/type").pop()!;
+  assert.deepEqual(typePut.body, { name: "portal-pcq-down", kind: "pcq", "pcq-classifier": "dst-address", "pcq-rate": "0", "pcq-limit": "50KiB", "pcq-total-limit": "2000KiB" });
+  const typePatch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/queue/type/*T1").pop()!;
+  assert.equal(typePatch.body["pcq-classifier"], "src-address");
+});
+
+test("grupo de equipos fijos con PCQ bajo el padre, y limpieza de colas que sobran", async () => {
+  const shared = { ...cfg, total_down_kbps: 51200, total_up_kbps: 51200, hotspot_network: "192.168.200.0/24" };
+  await upsertPoolQueue(shared, { target: "192.168.200.202/32,192.168.200.203/32", guaranteeKbps: 1024 });
+  const put = seen.filter((x) => x.method === "PUT" && x.url === "/rest/queue/simple").pop()!;
+  assert.deepEqual(put.body, {
+    name: "FIXED-POOL", target: "192.168.200.202/32,192.168.200.203/32", "max-limit": "0/0", "limit-at": "1024k/1024k",
+    parent: "PORTAL-ROOT", queue: "portal-pcq-up/portal-pcq-down", comment: "Portal: equipos fijos (reparto por igual)",
+  });
+  const removed = await removeStaleFixedQueues(shared, new Set(["FIXED-POOL"]));
+  assert.equal(removed, 1);
+  assert.ok(seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q7"));
+  assert.ok(!seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q6"), "no toca el ROOT del cliente");
+  assert.ok(!seen.some((x) => x.method === "DELETE" && x.url === "/rest/queue/simple/*Q8"), "conserva el grupo");
 });
