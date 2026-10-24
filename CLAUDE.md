@@ -93,7 +93,7 @@ Valores por defecto sembrados en escuelas (kbps down/up; otros tipos en `0004`):
 /user group add name=portal policy=read,write,api,rest-api,test
 /user add name=portal group=portal password=CAMBIAR
 ```
-El router debe ser alcanzable desde el servidor del portal (VPN o IP pública restringida). Si usa certificado autofirmado, se fija su huella SHA-256 (`router_cert_fingerprint`); sin huella se valida la cadena normal. Ver `docs/DESPLIEGUE.md`.
+El router debe ser alcanzable desde el servidor del portal (VPN o IP pública restringida). Si usa certificado autofirmado, se fija su huella SHA-256 (`router_cert_fingerprint`); sin huella se valida la cadena normal. Ver `docs/DESPLIEGUE.md`. La configuración completa que debe llevar un router (qué la pega el script, qué la hace el portal, datos del router real, pendientes) está en `docs/CONFIG-ROUTER.md`.
 
 ## Reglas para el código
 - Todo acceso a datos del tenant va con el cliente Supabase del usuario (RLS activo). El **service role** solo en server-side (route handlers / server actions) para: registro público, aprobación, escritura de `usage_stats`, lectura de credenciales del router. Nunca exponerlo al cliente.
