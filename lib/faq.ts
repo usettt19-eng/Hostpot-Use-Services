@@ -91,6 +91,7 @@ export const FAQ: FaqGroup[] = [
       { q: "¿Cómo limito la velocidad de una impresora, una pantalla o una cámara?", a: [
         "En **Equipos fijos**, al registrarlo abre «Límite de velocidad propio» y escribe su máximo de bajada y subida (en Mbps) y, si quieres, un mínimo garantizado. **Necesita IP fija.**",
         "Si no pones límites, el equipo entra al **grupo de equipos fijos**: todos ellos se reparten por igual lo que les toca y nunca dejan sin internet a los clientes. La tabla muestra «Propio» o «Grupo» en la columna Velocidad.",
+        "Para cambiar la velocidad de un equipo ya registrado, pulsa **Editar** en su fila, ajusta los Mbps (o vacíalos para que vuelva al grupo) y **Guardar cambios**. La MAC no se edita: si cambia, quita el equipo y regístralo de nuevo.",
       ] },
     ],
   },

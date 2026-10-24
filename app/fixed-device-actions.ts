@@ -81,3 +81,41 @@ export async function removeFixedDevice(fd: FormData) {
   }
   revalidatePath("/admin/fixed-devices");
 }
+
+/** Edita un equipo fijo (nombre, IP, ubicación, motivo y velocidad). La MAC no cambia: para otra MAC se quita y se registra de nuevo. */
+export async function updateFixedDevice(_: FixedState, fd: FormData): Promise<FixedState> {
+  const ctx = await requireAdminTenant();
+  const id = str(fd, "id");
+  if (!/^[0-9a-f-]{36}$/.test(id)) return { error: "Equipo no válido" };
+  const db = createAdminClient();
+  const { data: row } = await db.from("fixed_devices").select("mac")
+    .eq("id", id).eq("tenant_id", ctx.tenantId).maybeSingle();
+  if (!row) return { error: "No se encontró el equipo" };
+  const parsed = parseFixedDevice({
+    mac: row.mac, name: str(fd, "name"), ip: str(fd, "ip"), location: str(fd, "location"), reason: str(fd, "reason"),
+    maxDownMbps: str(fd, "max_down"), maxUpMbps: str(fd, "max_up"), minMbps: str(fd, "min"),
+  });
+  if (!parsed.ok) return { error: parsed.error };
+  const { mac: _mac, ...rest } = parsed.data;
+  const speeds = { max_down_kbps: rest.max_down_kbps ?? null, max_up_kbps: rest.max_up_kbps ?? null, min_kbps: rest.min_kbps ?? null };
+  const { error } = await db.from("fixed_devices")
+    .update({ name: rest.name, ip: rest.ip, location: rest.location, reason: rest.reason, ...speeds })
+    .eq("id", id).eq("tenant_id", ctx.tenantId);
+  if (error) {
+    console.error("updateFixedDevice db:", error.message);
+    return { error: "No se pudo guardar el cambio. ¿Está aplicada la migración 0014 en Supabase?" };
+  }
+  let note = "";
+  const cfg = await getRouterConfig(ctx.tenantId);
+  if (isConfigured(cfg) && hasSharing(cfg)) {
+    try {
+      const r = await syncFixedQueues(ctx.tenantId, cfg);
+      note = r.errors.length ? ` El router rechazó parte del ajuste: ${r.errors[0]}` : parsed.data.ip ? "" : " Sin IP fija no se le puede aplicar un límite de velocidad.";
+    } catch (e) {
+      console.error("updateFixedDevice colas:", e instanceof Error ? e.message : "error");
+      note = " Se guardó, pero no se pudo ajustar en el router; usa «Aplicar» en la pantalla del router para reintentar.";
+    }
+  }
+  revalidatePath("/admin/fixed-devices");
+  return { ok: `Cambios guardados.${note}` };
+}

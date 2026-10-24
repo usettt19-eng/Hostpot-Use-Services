@@ -2,12 +2,14 @@ import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { requireAdminTenant } from "@/lib/portal";
 import { hasSharing, isConfigured, listIpBindings } from "@/lib/mikrotik";
 import { bindingStatus } from "@/lib/fixed-devices";
-import { FixedDeviceForm } from "./form";
+import Link from "next/link";
+import { FixedDeviceForm, EditFixedDeviceForm } from "./form";
 import { removeFixedDevice } from "@/app/fixed-device-actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function FixedDevicesPage() {
+export default async function FixedDevicesPage({ searchParams }: { searchParams: Promise<{ edit?: string }> }) {
+  const { edit } = await searchParams;
   const ctx = await requireAdminTenant();
   const db = createAdminClient();
   type Row = { id: string; mac: string; name: string; ip: string | null; location: string | null; reason: string | null; router_binding_id: string | null; max_down_kbps?: number | null; max_up_kbps?: number | null; min_kbps?: number | null };
@@ -19,6 +21,8 @@ export default async function FixedDevicesPage() {
     ? (((await db.from("fixed_devices").select("id, mac, name, ip, location, reason, router_binding_id, created_at")
         .eq("tenant_id", ctx.tenantId).order("created_at", { ascending: false })).data ?? []) as Row[])
     : ((withSpeeds.data ?? []) as Row[]);
+
+  const editing = edit ? rows.find((r) => r.id === edit) : undefined;
 
   // Comprueba en el router si cada excepción sigue aplicada
   const cfg = await getRouterConfig(ctx.tenantId);
@@ -46,7 +50,7 @@ export default async function FixedDevicesPage() {
         <p className="muted">Equipos por cable que deben navegar sin iniciar sesión en el Hotspot.{sharing ? " Con IP fija entran al reparto de velocidad: en el grupo que se reparte por igual, o con su propio límite." : ""}</p>
         {routerError && <p className="err">{routerError}</p>}
       </div>
-      <FixedDeviceForm />
+      {editing ? <EditFixedDeviceForm key={editing.id} device={editing} /> : <FixedDeviceForm />}
       <div className="card scroll">
         <h2>Registrados</h2>
         <table className="table">
@@ -58,8 +62,9 @@ export default async function FixedDevicesPage() {
                 <td>{r.name}</td><td><code>{r.mac}</code></td><td>{r.ip ?? "—"}</td>
                 <td>{r.location ?? "—"}</td><td>{speedText(r)}</td>
                 <td>{routerError ? "desconocido" : bindingStatus(r.router_binding_id, routerIds)}</td>
-                <td>
-                  <form action={removeFixedDevice}>
+                <td style={{ whiteSpace: "nowrap" }}>
+                  <Link href={`/admin/fixed-devices?edit=${r.id}`} style={{ fontWeight: 600 }}>Editar</Link>{" "}
+                  <form action={removeFixedDevice} style={{ display: "inline" }}>
                     <input type="hidden" name="id" value={r.id} />
                     <button className="danger">Quitar</button>
                   </form>
