@@ -123,10 +123,9 @@ export function pickPromotion<T extends PromoCandidate>(list: T[], g: GuestHisto
   return ok[0] ?? null;
 }
 
-/** Página de la campaña que se abre al terminar de conectar; `next` es el destino original del visitante. */
-export function promoPageUrl(origin: string, slug: string, id: string, next: string): string {
-  const base = `${origin.replace(/\/+$/, "")}/w/${encodeURIComponent(slug)}/promo/${id}`;
-  return next ? `${base}?${new URLSearchParams({ next }).toString()}` : base;
+/** Página de la campaña que se abre al pulsar «Conectarme»; `token` es el pedido cifrado (ver promo-token.ts). */
+export function promoPageUrl(origin: string, slug: string, id: string, token: string): string {
+  return `${origin.replace(/\/+$/, "")}/w/${encodeURIComponent(slug)}/promo/${id}?${new URLSearchParams({ t: token }).toString()}`;
 }
 
 /** Porcentaje de clics sobre impresiones, con un decimal; «—» si aún no hay impresiones. */

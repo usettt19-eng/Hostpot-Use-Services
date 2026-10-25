@@ -41,8 +41,12 @@ export type FlowDeps = {
   encrypt(value: string): string;
   randomHex(bytes: number): string;
   randomPassword(): string;
-  /** Módulo Promociones: página de la campaña que le toca al visitante (con `next` = su destino), o null si no hay. Si falla, se ignora. */
-  promo?(tenantId: string, guest: GuestHistory, next: string): Promise<string | null>;
+  /**
+   * Módulo Promociones: página de la campaña que le toca al visitante, o null si no hay. Se le muestra ANTES de darle internet
+   * (así el teléfono no cierra la ventana del portal): la conexión real ocurre al pulsar un botón de esa página, y para eso
+   * recibe el acceso ya creado. Si falla, se ignora y se conecta como siempre.
+   */
+  promo?(tenantId: string, guest: GuestHistory, ticket: { login: string; username: string; password: string; next: string }): Promise<string | null>;
 };
 
 export type FlowInput = {
@@ -155,14 +159,14 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   }
 
   // Redirección de nivel superior (GET) al login del Hotspot con la credencial de un solo uso
-  // Con el módulo Promociones, el visitante aterriza en su campaña (que luego lo lleva a su destino); un fallo aquí nunca impide conectar
-  let landing = dst;
+  // Con el módulo Promociones, el visitante pasa primero por su campaña; un fallo aquí nunca impide conectar
   if (deps.promo) {
     try {
-      landing = (await deps.promo(input.tenantId, { visitCount: visitCount ?? 1, lastSeenBefore: lastSeenBefore ?? null }, dst)) || dst;
+      const page = await deps.promo(input.tenantId, { visitCount: visitCount ?? 1, lastSeenBefore: lastSeenBefore ?? null }, { login, username, password, next: dst });
+      if (page) return { ok: true, redirect: page };
     } catch {
-      landing = dst;
+      // se conecta sin campaña
     }
   }
-  return { ok: true, redirect: buildLoginRedirect(login, username, password, landing) };
+  return { ok: true, redirect: buildLoginRedirect(login, username, password, dst) };
 }

@@ -186,7 +186,7 @@ export const FAQ: FaqGroup[] = [
   {
     id: "promociones", title: "Promociones (módulo opcional)", items: [
       { q: "¿Qué son las promociones y por qué no veo «Promociones» en el menú?", a: [
-        "Una promoción es lo que el visitante ve justo después de conectarse a tu WiFi: una imagen, un mensaje y, si quieres, un botón con un enlace (tu menú, tu página, una oferta).",
+        "Una promoción es lo que el visitante ve cuando pulsa «Conectarme» en tu portal y justo antes de recibir internet: una imagen, un mensaje y, si quieres, un botón con un enlace (tu menú, tu página, una oferta). Se muestra antes para que el teléfono no cierre la ventana del portal y se vea siempre.",
         "Es un módulo opcional: el administrador de la plataforma lo activa para tu establecimiento. Si no ves **Promociones** en el menú, pídele que lo active. Si lo desactiva, tus campañas se conservan pero dejan de mostrarse.",
       ] },
       { q: "¿Cómo creo una promoción?", a: [
@@ -195,7 +195,7 @@ export const FAQ: FaqGroup[] = [
       ] },
       { q: "¿Quién ve cada promoción?", a: [
         "Tú eliges el grupo: **todos**, **nuevos** (su primera visita), **recurrentes** (ya habían venido) o **los que vuelven tras una ausencia** (llevaban más de los días que indiques sin venir).",
-        "Si hay varias activas, cada visitante ve solo una: la más específica para él (la de «ausencia» gana a la de «recurrentes», y esta a la de «todos»); a igualdad, la más reciente. Se muestra al conectarse; si no hay ninguna que le toque, entra directo a internet como siempre.",
+        "Si hay varias activas, cada visitante ve solo una: la más específica para él (la de «ausencia» gana a la de «recurrentes», y esta a la de «todos»); a igualdad, la más reciente. Verá dos botones: el de tu campaña (lo conecta y lo lleva a tu enlace) y «Continuar a internet». Si no hay ninguna que le toque, entra directo a internet como siempre.",
       ] },
       { q: "¿Cómo sé si funciona y qué datos guarda?", a: [
         "La lista muestra **impresiones** (veces que se mostró), **clics** y el porcentaje de clics. Son solo contadores: no se guarda quién la vio ni quién pulsó.",

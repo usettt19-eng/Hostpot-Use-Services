@@ -50,7 +50,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
       <div className="card">
         <h1>Promociones</h1>
         <p className="muted">
-          Una campaña es lo que el visitante ve justo después de conectarse: una imagen, un mensaje y, si quieres, un botón con un enlace.
+          Una campaña es lo que el visitante ve al pulsar «Conectarme», justo antes de recibir internet: una imagen, un mensaje y, si quieres, un botón con un enlace. Se conecta al pulsar el botón de la campaña o «Continuar a internet».
           Si hay varias activas, cada visitante ve la más específica para él. No se guarda quién la vio: solo se cuentan impresiones y clics.
         </p>
         {truncated && <p className="err">Hay muchos eventos: las cifras pueden estar incompletas.</p>}

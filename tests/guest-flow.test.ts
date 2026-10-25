@@ -180,17 +180,20 @@ test("un destino original malicioso se descarta", async () => {
   assert.equal(new URL(r.redirect).searchParams.has("dst"), false);
 });
 
-test("Promociones: el visitante aterriza en su campaña con su destino original en «next»", async () => {
+test("Promociones: el visitante pasa primero por su campaña, sin darle internet todavía", async () => {
   const s = setup();
   let seen: any;
   s.deps.db.upsertGuest = async () => ({ id: "g1", visitCount: 4, lastSeenBefore: new Date("2026-08-01T00:00:00Z") });
-  s.deps.promo = async (tenantId, guest, next) => { seen = { tenantId, guest, next }; return "https://portal.x.com/w/cafe/promo/p1?next=" + encodeURIComponent(next); };
+  s.deps.promo = async (tenantId, guest, ticket) => { seen = { tenantId, guest, ticket }; return "https://portal.x.com/w/cafe/promo/p1?t=TOKEN"; };
   const r = await connectGuest(s.deps, s.input);
   assert.ok(r.ok && "redirect" in r);
-  assert.deepEqual([seen.tenantId, seen.guest.visitCount, seen.next], ["t1", 4, "http://neverssl.com/"]);
-  const dst = new URL((r as any).redirect).searchParams.get("dst")!;
-  assert.equal(new URL(dst).pathname, "/w/cafe/promo/p1");
-  assert.equal(new URL(dst).searchParams.get("next"), "http://neverssl.com/");
+  assert.equal((r as any).redirect, "https://portal.x.com/w/cafe/promo/p1?t=TOKEN", "va a la campaña, no al login del router");
+  assert.deepEqual([seen.tenantId, seen.guest.visitCount], ["t1", 4]);
+  assert.equal(seen.ticket.login, "http://192.168.200.1/login");
+  assert.match(seen.ticket.username, /^g_/);
+  assert.equal(seen.ticket.password, "PASS1234word");
+  assert.equal(seen.ticket.next, "http://neverssl.com/");
+  assert.ok(s.calls.includes("createGuestUser"), "el acceso ya está creado para cuando pulse el botón");
 });
 
 test("Promociones: sin campaña, o si el módulo falla, se conecta igual y va al destino original", async () => {
@@ -199,7 +202,9 @@ test("Promociones: sin campaña, o si el módulo falla, se conecta igual y va al
     s.deps.promo = promo;
     const r = await connectGuest(s.deps, s.input);
     assert.ok(r.ok && "redirect" in r);
-    assert.equal(new URL((r as any).redirect).searchParams.get("dst"), "http://neverssl.com/");
+    const u = new URL((r as any).redirect);
+    assert.equal(u.origin + u.pathname, "http://192.168.200.1/login");
+    assert.equal(u.searchParams.get("dst"), "http://neverssl.com/");
   }
 });
 

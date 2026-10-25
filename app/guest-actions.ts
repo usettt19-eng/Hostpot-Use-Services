@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createAdminClient, getRouterConfig } from "@/lib/supabase";
-import { blindIndex, encryptSecret } from "@/lib/crypto";
+import { blindIndex, decryptSecret, encryptSecret } from "@/lib/crypto";
 import { getPublishedPortal, getTenantBySlug, requireAdminTenant } from "@/lib/portal";
 import { connectGuest, type FlowDb, type RouterApi } from "@/lib/guest-flow";
 import { createGuestUser, findHostByAddress, isConfigured, syncBandwidthProfileSafe } from "@/lib/mikrotik";
@@ -18,6 +18,7 @@ import { isTenantSuspended } from "@/lib/tenant-status";
 import { moduleEnabled } from "@/lib/tenant-modules";
 import { pickPromotion, promoPageUrl, type PromoCandidate } from "@/lib/promotions";
 import { siteOrigin } from "@/lib/site-url";
+import { sealPromoTicket } from "@/lib/promo-token";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean } | null;
 
@@ -122,13 +123,15 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
       randomHex: (n) => randomBytes(n).toString("hex"),
       randomPassword: () => randomBytes(9).toString("base64url"),
       // Módulo Promociones (solo si el dueño lo activó para este establecimiento)
-      promo: async (tenantId, guest, next) => {
+      promo: async (tenantId, guest, ticket) => {
         if (!(await moduleEnabled(tenantId, "promotions"))) return null;
         const { data } = await createAdminClient().from("promotions")
           .select("id, status, segment, inactive_days, starts_at, ends_at, created_at, content")
           .eq("tenant_id", tenantId).eq("status", "active");
         const picked = pickPromotion((data ?? []) as PromoCandidate[], guest, new Date());
-        return picked ? promoPageUrl(siteOrigin(h), tenant.slug, picked.id, next) : null;
+        if (!picked) return null;
+        const token = sealPromoTicket({ tenantId, promoId: picked.id, ...ticket }, { encrypt: encryptSecret, decrypt: decryptSecret }, Date.now());
+        return promoPageUrl(siteOrigin(h), tenant.slug, picked.id, token);
       },
     },
     {

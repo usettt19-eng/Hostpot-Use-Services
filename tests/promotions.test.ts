@@ -78,9 +78,8 @@ test("no elige borradores, pausadas, fuera de fecha ni con contenido dañado", (
 });
 
 test("URL de la página de la campaña y porcentaje de clics", () => {
-  assert.equal(promoPageUrl("https://connect.x.com/", "mi-local", "abc", ""), "https://connect.x.com/w/mi-local/promo/abc");
-  assert.equal(promoPageUrl("https://connect.x.com", "mi-local", "abc", "https://a.com/?q=1"),
-    "https://connect.x.com/w/mi-local/promo/abc?next=https%3A%2F%2Fa.com%2F%3Fq%3D1");
+  assert.equal(promoPageUrl("https://connect.x.com/", "mi-local", "abc", "TOKEN_1-x"), "https://connect.x.com/w/mi-local/promo/abc?t=TOKEN_1-x");
+  assert.equal(promoPageUrl("https://connect.x.com", "mi-local", "abc", "a+b/c="), "https://connect.x.com/w/mi-local/promo/abc?t=a%2Bb%2Fc%3D");
   assert.equal(ctrText(0, 0), "—");
   assert.equal(ctrText(200, 5), "2.5 %");
 });
