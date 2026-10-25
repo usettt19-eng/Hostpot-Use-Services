@@ -70,3 +70,15 @@ openssl s_client -connect 10.99.0.2:443 </dev/null 2>/dev/null | openssl x509 -n
 
 **En el portal** → `/platform` → Configurar router → Conexión del portal con el router: URL `https://10.99.0.2`, usuario `portal`, la huella SHA-256 y la contraseña.
 Si cambias o renuevas el certificado del router, actualiza la huella.
+
+## Correo de salida (códigos de verificación del WiFi)
+El portal envía por SMTP el código de 6 dígitos. Sirve cualquier proveedor SMTP (el del dominio, Brevo, Resend, SES, Gmail con clave de aplicación).
+1. Añade al `.env` del servidor (`nano /opt/hotspot-portal/.env`; no pegues estos valores en ningún chat):
+   ```
+   SMTP_URL=smtps://USUARIO:CLAVE@SERVIDOR:465
+   MAIL_FROM="Connect Wifi <no-responder@tu-dominio.com>"
+   ```
+   Si el usuario o la clave tienen símbolos (`@`, `:`, `/`, `#`, `%`…), se codifican para URL (`@` = `%40`, `:` = `%3A`, `/` = `%2F`, `#` = `%23`, `%` = `%25`). Puerto 465 = `smtps://`; puerto 587 = `smtp://` (STARTTLS).
+2. Recrea el contenedor para que lea el `.env`: `cd /opt/hotspot-portal && docker compose up -d --force-recreate`. `docker-compose.yml` ya pasa `SMTP_URL` y `MAIL_FROM` al contenedor.
+3. `/platform` debe mostrar «Correo de envío: configurado».
+4. Para que los correos no caigan en spam, el dominio del remitente debe tener SPF, DKIM y DMARC (el proveedor da los registros DNS que hay que crear).
