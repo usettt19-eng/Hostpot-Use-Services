@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  parsePromotion, parseContent, inSegment, pickPromotion, panamaLocalToIso, isoToPanamaLocal, promoPageUrl, ctrText,
+  ctaHost, activeCtaHosts, parsePromotion, parseContent, inSegment, pickPromotion, panamaLocalToIso, isoToPanamaLocal, promoPageUrl, ctrText,
   type PromoCandidate,
 } from "../lib/promotions.ts";
 import { isModuleKey, MODULE_KEYS } from "../lib/modules.ts";
@@ -82,4 +82,23 @@ test("URL de la página de la campaña y porcentaje de clics", () => {
   assert.equal(promoPageUrl("https://connect.x.com", "mi-local", "abc", "a+b/c="), "https://connect.x.com/w/mi-local/promo/abc?t=a%2Bb%2Fc%3D");
   assert.equal(ctrText(0, 0), "—");
   assert.equal(ctrText(200, 5), "2.5 %");
+});
+
+test("sitio del botón: solo dominios normales por https, sin www ni IP", () => {
+  assert.equal(ctaHost("https://www.Ejemplo.com/menu?x=1"), "ejemplo.com");
+  assert.equal(ctaHost("https://menu.cafe-sol.com.pa/"), "menu.cafe-sol.com.pa");
+  assert.equal(ctaHost("http://ejemplo.com"), null);
+  assert.equal(ctaHost("https://192.168.1.5/x"), null);
+  assert.equal(ctaHost("https://localhost/x"), null);
+  assert.equal(ctaHost("https://exa mple.com"), null);
+  assert.equal(ctaHost("no es una url"), null);
+});
+
+test("sitios de las campañas activas: sin repetir, ignora pausadas, borradores y sin enlace", () => {
+  const mk = (status: string, cta_url: string) => ({ status, content: { title: "t", body: "", cta_label: cta_url ? "Ver" : "", cta_url, image: null } });
+  assert.deepEqual(activeCtaHosts([
+    mk("active", "https://b.com/x"), mk("active", "https://www.a.com/y"), mk("active", "https://a.com/z"),
+    mk("paused", "https://pausada.com"), mk("draft", "https://borrador.com"), mk("active", ""),
+    { status: "active", content: { title: "" } },
+  ]), ["a.com", "b.com"]);
 });

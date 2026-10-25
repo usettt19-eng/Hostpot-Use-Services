@@ -37,7 +37,14 @@ export function PromotionForm({ v }: { v: PromoFormValues }) {
         <div><label>Título</label><input name="title" required maxLength={80} defaultValue={v.title} autoComplete="off" /></div>
         <div><label>Texto del botón (si hay enlace)</label><input name="cta_label" maxLength={30} defaultValue={v.cta_label} autoComplete="off" placeholder="Ej. Ver menú" /></div>
         <div style={{ gridColumn: "1 / -1" }}><label>Mensaje</label><textarea name="body" rows={3} maxLength={300} defaultValue={v.body} /></div>
-        <div style={{ gridColumn: "1 / -1" }}><label>Enlace del botón (opcional, solo https://)</label><input name="cta_url" maxLength={300} defaultValue={v.cta_url} autoComplete="off" placeholder="https://" /></div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label>Enlace del botón (opcional, solo https://)</label>
+          <input name="cta_url" maxLength={300} defaultValue={v.cta_url} autoComplete="off" placeholder="https://" />
+          <p className="muted" style={{ margin: "4px 0 0" }}>
+            El enlace se abre antes de que el visitante tenga internet: al activar la campaña, el portal permite ese sitio en el router. Usa una página sencilla
+            (tu menú, tu web); redes sociales como Instagram o Facebook cargan recursos de otros dominios y pueden verse incompletas.
+          </p>
+        </div>
         <div>
           <label>Imagen (PNG, JPG o WebP, hasta 1 MB)</label>
           <input name="file" type="file" accept="image/png,image/jpeg,image/webp" />

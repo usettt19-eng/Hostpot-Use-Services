@@ -8,9 +8,9 @@ import { allow } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 /**
- * Aquí ocurre la conexión real: abre el pedido cifrado (auténtico, vigente y de esta campaña), cuenta el clic si fue el botón de la
- * campaña y manda al login del Hotspot con la credencial de un solo uso. El destino final es el enlace guardado de la campaña
- * (https revalidado desde la base de datos) o el destino original del visitante; nunca viene de la URL en claro.
+ * Abre el pedido cifrado (auténtico, vigente y de esta campaña). `to=next` es la conexión real: manda al login del Hotspot con la
+ * credencial de un solo uso y el destino original del visitante. `to=cta` cuenta el clic y lleva al enlace guardado de la campaña
+ * (https revalidado desde la base de datos). Ningún destino viene de la URL en claro.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
@@ -23,16 +23,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const ip = req.headers.get("x-real-ip") ?? "desconocida";
   if (!allow(`promo-go:${ip}`, 20, 60_000)) return new Response("Demasiados intentos", { status: 429 });
 
-  let dst = ticket.next;
+  // Botón de la campaña: cuenta el clic y abre el enlace TODAVÍA sin conectar (el sitio está en la lista blanca del router). No se conecta
+  // aquí porque, al detectar internet, el teléfono cierra la ventana del portal y el visitante nunca llegaría a ver el enlace.
+  // Al volver (atrás) sigue en la página de la campaña con «Continuar a internet».
   if (url.searchParams.get("to") === "cta") {
     const promo = await loadPublicPromotion(tenant.id, id);
     if (promo?.content.cta_url) {
-      dst = promo.content.cta_url;
       if (allow(`promo-click:${ip}:${id}`, 3, 60_000)) await recordPromotionEvent(tenant.id, promo.id, "click");
+      return new Response(null, { status: 302, headers: { Location: promo.content.cta_url, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     }
   }
+  // «Continuar a internet»: conexión real, con la credencial de un solo uso
   return new Response(null, {
     status: 302,
-    headers: { Location: buildLoginRedirect(ticket.login, ticket.username, ticket.password, dst), "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
+    headers: { Location: buildLoginRedirect(ticket.login, ticket.username, ticket.password, ticket.next), "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
   });
 }

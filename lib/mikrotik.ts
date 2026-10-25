@@ -513,3 +513,32 @@ export async function syncFixedAddressList(c: RouterConfig, entries: { address: 
   }
   return { added, removed };
 }
+
+/** Marca de las entradas de la lista blanca del Hotspot que crea el portal para los enlaces de las campañas. */
+export const CAMPAIGN_WG_COMMENT = "Portal: campaña";
+
+/**
+ * Deja en la lista blanca del Hotspot (walled garden) exactamente los sitios de los botones de las campañas activas, para que el
+ * enlace se abra ANTES de que el visitante tenga internet (después, el teléfono cierra solo la ventana del portal). Por cada sitio
+ * entran el dominio y sus subdominios. Solo toca las entradas con el comentario del portal; las que puso el administrador se respetan.
+ */
+export async function syncCampaignWalledGarden(c: RouterConfig, hosts: string[]): Promise<{ added: number; removed: number }> {
+  if (!isConfigured(c)) return { added: 0, removed: 0 };
+  const want = new Set(hosts.flatMap((h) => [h, `*.${h}`]));
+  const have = await rest<Record<string, string>[]>(c, "GET", "/ip/hotspot/walled-garden");
+  const present = new Set<string>();
+  let removed = 0;
+  for (const r of have) {
+    if ((r.comment ?? "") !== CAMPAIGN_WG_COMMENT) continue;
+    const host = r["dst-host"] ?? "";
+    if (want.has(host) && !present.has(host)) { present.add(host); continue; }
+    if (r[".id"]) { await rest(c, "DELETE", `/ip/hotspot/walled-garden/${encodeURIComponent(r[".id"])}`); removed++; }
+  }
+  let added = 0;
+  for (const host of want) {
+    if (present.has(host)) continue;
+    await rest(c, "PUT", "/ip/hotspot/walled-garden", { "dst-host": host, action: "allow", comment: CAMPAIGN_WG_COMMENT });
+    added++;
+  }
+  return { added, removed };
+}

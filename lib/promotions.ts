@@ -132,3 +132,31 @@ export function promoPageUrl(origin: string, slug: string, id: string, token: st
 export function ctrText(impressions: number, clicks: number): string {
   return impressions > 0 ? `${((clicks / impressions) * 100).toFixed(1)} %` : "—";
 }
+
+// ---- Sitios de los botones (lista blanca del Hotspot) ----
+
+const HOST_RE = /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/;
+
+/** Dominio del enlace de un botón (minúsculas, sin «www.»), o null si no es un dominio normal (IP, puerto raro, etc.). */
+export function ctaHost(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return null;
+    const h = u.hostname.toLowerCase().replace(/^www\./, "");
+    return HOST_RE.test(h) ? h : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Sitios (sin repetir) de los botones de las campañas activas y con contenido válido. */
+export function activeCtaHosts(list: { status: string; content: unknown }[]): string[] {
+  const out = new Set<string>();
+  for (const p of list) {
+    if (p.status !== "active") continue;
+    const c = parseContent(p.content);
+    const h = c?.cta_url ? ctaHost(c.cta_url) : null;
+    if (h) out.add(h);
+  }
+  return [...out].sort();
+}

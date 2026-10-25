@@ -210,7 +210,12 @@ export const FAQ: FaqGroup[] = [
       ] },
       { q: "¿Quién ve cada promoción?", a: [
         "Tú eliges el grupo: **todos**, **nuevos** (su primera visita), **recurrentes** (ya habían venido) o **los que vuelven tras una ausencia** (llevaban más de los días que indiques sin venir).",
-        "Si hay varias activas, cada visitante ve solo una: la más específica para él (la de «ausencia» gana a la de «recurrentes», y esta a la de «todos»); a igualdad, la más reciente. Verá dos botones: el de tu campaña (lo conecta y lo lleva a tu enlace) y «Continuar a internet». Si no hay ninguna que le toque, entra directo a internet como siempre.",
+        "Si hay varias activas, cada visitante ve solo una: la más específica para él (la de «ausencia» gana a la de «recurrentes», y esta a la de «todos»); a igualdad, la más reciente. Verá dos botones: el de tu campaña (abre tu enlace) y «Continuar a internet» (lo conecta). Para volver de tu enlace a la campaña usa «atrás». Si no hay ninguna que le toque, entra directo a internet como siempre.",
+      ] },
+      { q: "El botón de la campaña no abre mi enlace, o se ve incompleto", a: [
+        "El enlace se abre **antes** de que el visitante tenga internet (si no, el teléfono cierra la ventana del portal y no llega a verlo). Para eso, al activar la campaña el portal permite ese sitio en el router, junto con sus subdominios.",
+        "Funciona bien con páginas sencillas (tu menú, tu web). Las que cargan imágenes, estilos o videos de otros dominios (Instagram, Facebook, YouTube) pueden verse incompletas, porque esos dominios siguen bloqueados hasta conectarse. Usa una página propia y ligera.",
+        "Si acabas de activar la campaña y el enlace no abre, espera unos segundos y reintenta. Si sigue sin abrir, revisa que el router esté configurado en la pantalla del router de la plataforma.",
       ] },
       { q: "¿Cómo sé si funciona y qué datos guarda?", a: [
         "La lista muestra **impresiones** (veces que se mostró), **clics** y el porcentaje de clics. Son solo contadores: no se guarda quién la vio ni quién pulsó.",

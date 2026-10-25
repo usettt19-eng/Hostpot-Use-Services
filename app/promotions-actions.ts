@@ -7,6 +7,7 @@ import { ASSET_BUCKET, requireAdminTenant } from "@/lib/portal";
 import { requireModule } from "@/lib/tenant-modules";
 import { IMAGE_MIME, MAX_IMAGE_BYTES, sniffImage } from "@/lib/portal-settings";
 import { STATUSES, panamaLocalToIso, parsePromotion } from "@/lib/promotions";
+import { syncPromotionHosts } from "@/lib/promotions-db";
 
 export type PromoState = { error?: string; ok?: string; id?: string } | null;
 
@@ -58,6 +59,7 @@ export async function savePromotion(_: PromoState, fd: FormData): Promise<PromoS
   if (id) {
     const { data, error } = await db.from("promotions").update(row).eq("id", id).eq("tenant_id", ctx.tenantId).select("id").maybeSingle();
     if (error || !data) return { error: "No se pudo guardar la campaña" };
+    await syncPromotionHosts(ctx.tenantId);
     revalidatePath("/admin/promotions");
     return { ok: "Cambios guardados", id };
   }
@@ -79,6 +81,7 @@ export async function setPromotionStatus(fd: FormData) {
   if (!/^[0-9a-f-]{36}$/.test(id) || !(STATUSES as readonly string[]).includes(status)) return;
   await createAdminClient().from("promotions")
     .update({ status, updated_at: new Date().toISOString() }).eq("id", id).eq("tenant_id", ctx.tenantId);
+  await syncPromotionHosts(ctx.tenantId);
   revalidatePath("/admin/promotions");
 }
 
@@ -88,5 +91,6 @@ export async function deletePromotion(fd: FormData) {
   const id = str(fd, "id");
   if (!/^[0-9a-f-]{36}$/.test(id)) return;
   await createAdminClient().from("promotions").delete().eq("id", id).eq("tenant_id", ctx.tenantId);
+  await syncPromotionHosts(ctx.tenantId);
   revalidatePath("/admin/promotions");
 }

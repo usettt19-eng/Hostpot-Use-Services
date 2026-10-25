@@ -8,6 +8,7 @@ Referencia única de cómo debe quedar un router. Estado: **verificada en el rou
 | Túnel WireGuard, usuario `portal`, API segura, red del Hotspot, Hotspot, walled garden, `login.html`, **reglas de aislamiento** | Se pega en el router | `/platform/router/{id}` → «Generar configuración» (`lib/router-script.ts`, bloques copiables y `.rsc`) |
 | Cola padre `PORTAL-ROOT`, perfiles de velocidad (límite, mínimo, ráfaga, `parent-queue`, `address-list=visitantes`), colas de equipos fijos, lista `equipos-fijos` | El portal, solo | «Guardar y aplicar en el router» y al registrar/editar/quitar equipos; el cron lo mantiene cada minuto |
 | Usuarios del Hotspot y excepciones por MAC de equipos fijos | El portal, solo | Usuarios / Equipos fijos |
+| Lista blanca de los enlaces de las campañas (`/ip hotspot walled-garden`, comentario «Portal: campaña», dominio y `*.dominio`) | El portal, solo | Al guardar, activar, pausar o borrar una campaña |
 | Endurecimiento del router (servicios, firewall de entrada, MAC-server) | **A mano, todavía no está en el script** | Ver «Pendiente» |
 
 ## Lo que debe existir en el router (comprobar con estos comandos)

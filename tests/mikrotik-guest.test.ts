@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, ensureParentFirst, lookupIpsByMac, syncFixedAddressList, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
+  listActiveDetails, setHotspotUserPassword, kickUserSessions, syncBandwidthProfile, ensureParentQueue, ensureParentFirst, syncCampaignWalledGarden, lookupIpsByMac, syncFixedAddressList, syncBandwidthProfileSafe, upsertFixedQueue, upsertPoolQueue, removeStaleFixedQueues, removeFixedQueue, addBypassBinding, createGuestUser, deleteHotspotUser, findHostByAddress, listActiveSessions, listGuestUsers,
   listHotspotUserNames, listIpBindings, removeIpBinding, type RouterConfig,
 } from "../lib/mikrotik.ts";
 
@@ -75,6 +75,15 @@ before(async () => {
       ]));
       if (u.pathname === "/rest/ip/firewall/address-list" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*F9" }));
       if (u.pathname.startsWith("/rest/ip/firewall/address-list/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
+      if (u.pathname === "/rest/ip/hotspot/walled-garden" && req.method === "GET") return res.end(JSON.stringify([
+        { ".id": "*W1", "dst-host": "ejemplo.com", comment: "Portal: campaña" },
+        { ".id": "*W2", "dst-host": "*.ejemplo.com", comment: "Portal: campaña" },
+        { ".id": "*W3", "dst-host": "vieja.com", comment: "Portal: campaña" },
+        { ".id": "*W4", "dst-host": "connect.useservices.company", comment: "portal" },
+        { ".id": "*W5", "dst-host": "mano.com", comment: "" },
+      ]));
+      if (u.pathname === "/rest/ip/hotspot/walled-garden" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*W9" }));
+      if (u.pathname.startsWith("/rest/ip/hotspot/walled-garden/") && req.method === "DELETE") { res.statusCode = 204; return res.end(); }
       if (u.pathname === "/rest/queue/simple/move" && req.method === "POST") return res.end("[]");
       if (u.pathname === "/rest/queue/simple" && req.method === "PUT") return res.end(JSON.stringify({ ".id": "*Q9" }));
       if (u.pathname === "/rest/queue/simple/*Q1" && req.method === "PATCH") return res.end("{}");
@@ -239,6 +248,19 @@ test("un perfil de visitantes lleva address-list=visitantes y se conserva en el 
   await syncBandwidthProfile(cfg, "Existente", 5120, 2048, { maxDevices: 1, addressList: "visitantes" });
   const patch = seen.filter((x) => x.method === "PATCH" && x.url === "/rest/ip/hotspot/user/profile/*P1").pop()!;
   assert.equal((patch.body as Record<string, string>)["address-list"], "visitantes");
+});
+
+test("lista blanca de las campañas: agrega dominio y subdominios que faltan y quita solo lo viejo del portal", async () => {
+  const r = await syncCampaignWalledGarden(cfg, ["ejemplo.com", "nuevo.com"]);
+  assert.deepEqual(r, { added: 2, removed: 1 });
+  const puts = seen.filter((x) => x.method === "PUT" && x.url === "/rest/ip/hotspot/walled-garden").map((x) => x.body);
+  assert.deepEqual(puts.slice(-2), [
+    { "dst-host": "nuevo.com", action: "allow", comment: "Portal: campaña" },
+    { "dst-host": "*.nuevo.com", action: "allow", comment: "Portal: campaña" },
+  ]);
+  const dels = seen.filter((x) => x.method === "DELETE" && x.url.includes("walled-garden/")).map((x) => x.url);
+  assert.ok(dels.some((u) => u.endsWith("/*W3")), "quita el sitio de una campaña que ya no está");
+  assert.ok(!dels.some((u) => u.endsWith("/*W4") || u.endsWith("/*W5")), "no toca el portal ni lo puesto a mano");
 });
 
 test("PORTAL-ROOT se mueve solo si la cola general del Hotspot va delante; una cola de usuario arriba no cuenta", async () => {

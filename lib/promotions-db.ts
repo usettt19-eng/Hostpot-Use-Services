@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase";
 import { moduleEnabled } from "@/lib/tenant-modules";
-import { parseContent, type PromoContent } from "@/lib/promotions";
+import { activeCtaHosts, parseContent, type PromoContent } from "@/lib/promotions";
+import { getRouterConfig } from "@/lib/supabase";
+import { isConfigured, syncCampaignWalledGarden } from "@/lib/mikrotik";
 
 export type LoadedPromotion = { id: string; content: PromoContent };
 
@@ -28,4 +30,21 @@ export async function loadPublicPromotion(tenantId: string, id: string, anyStatu
 export async function recordPromotionEvent(tenantId: string, promotionId: string, kind: "impression" | "click") {
   const { error } = await createAdminClient().from("promotion_events").insert({ tenant_id: tenantId, promotion_id: promotionId, kind });
   if (error) console.error("recordPromotionEvent:", error.message);
+}
+
+/**
+ * Pone al día la lista blanca del router con los sitios de las campañas activas del establecimiento (si el módulo está activo).
+ * Mejor esfuerzo: si el router no responde, la campaña se guarda igual y se reintenta en el próximo cambio.
+ */
+export async function syncPromotionHosts(tenantId: string): Promise<void> {
+  try {
+    const cfg = await getRouterConfig(tenantId);
+    if (!isConfigured(cfg)) return;
+    const active = (await moduleEnabled(tenantId, "promotions"))
+      ? (await createAdminClient().from("promotions").select("status, content").eq("tenant_id", tenantId).eq("status", "active")).data ?? []
+      : [];
+    await syncCampaignWalledGarden(cfg, activeCtaHosts(active));
+  } catch (e) {
+    console.error("syncPromotionHosts:", e instanceof Error ? e.message : "error");
+  }
 }
