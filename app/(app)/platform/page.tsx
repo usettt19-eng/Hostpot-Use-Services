@@ -4,6 +4,7 @@ import { MODULES, MODULE_KEYS } from "@/lib/modules";
 import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { summarizeTenants } from "@/lib/platform";
 import NewTenantForm from "./new-tenant-form";
+import { mailConfigured } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 const LIMIT = 20_000;
@@ -37,6 +38,9 @@ export default async function PlatformPage() {
         <div className="row">
           <span className="badge">Establecimientos: {rows.length}</span>
           <span className="badge">Suspendidos: {suspended}</span>
+          <span className={`badge ${mailConfigured() ? "active" : "pending"}`} title="SMTP_URL y MAIL_FROM en el .env del servidor">
+            Correo de envío: {mailConfigured() ? "configurado" : "sin configurar"}
+          </span>
         </div>
         {truncated && <p className="err">Hay muchos registros: las cifras pueden estar incompletas.</p>}
       </div>

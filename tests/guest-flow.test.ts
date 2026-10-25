@@ -216,3 +216,73 @@ test("Promociones: un visitante ya autorizado no pasa por la campaña", async ()
   assert.ok(r.ok && "redirect" in r);
   assert.equal(called, false);
 });
+
+// ---- Verificación del correo con código ----
+
+function withOtp(over: { sendError?: string; verifyError?: string } = {}) {
+  const s = setup();
+  s.input.settings = { ...s.input.settings, verify_email: true };
+  const log: any[] = [];
+  s.deps.otp = {
+    send: async (t, email, locale) => { log.push(["send", t, email, locale]); return over.sendError ? { ok: false, error: over.sendError } : { ok: true }; },
+    verify: async (t, email, code) => { log.push(["verify", t, email, code]); return over.verifyError ? { ok: false, error: over.verifyError } : { ok: true }; },
+  };
+  return { ...s, log };
+}
+
+test("Verificación del correo: sin código, lo envía y no guarda ni crea nada todavía", async () => {
+  const s = withOtp();
+  const r = await connectGuest(s.deps, { ...s.input, locale: "es" });
+  assert.deepEqual(r, { ok: true, needCode: true, email: "a•••@correo.com" });
+  assert.deepEqual(s.log, [["send", "t1", "ana@correo.com", "es"]]);
+  assert.ok(!s.calls.includes("upsertGuest") && !s.calls.includes("createGuestUser"), "nada se crea antes de verificar");
+});
+
+test("Verificación del correo: con el código correcto conecta y marca el correo como verificado", async () => {
+  const s = withOtp();
+  let verifiedFlag: boolean | undefined;
+  const orig = s.deps.db.upsertGuest;
+  s.deps.db.upsertGuest = async (t, g) => { verifiedFlag = g.emailVerified; return orig(t, g); };
+  const r = await connectGuest(s.deps, { ...s.input, form: { ...s.input.form, code: "123456" } });
+  assert.ok(r.ok && "redirect" in r);
+  assert.deepEqual(s.log, [["verify", "t1", "ana@correo.com", "123456"]]);
+  assert.equal(verifiedFlag, true);
+  assert.ok(s.calls.includes("createGuestUser"));
+});
+
+test("Verificación del correo: código equivocado no conecta ni guarda al visitante", async () => {
+  const s = withOtp({ verifyError: "El código no es correcto" });
+  const r = await connectGuest(s.deps, { ...s.input, form: { ...s.input.form, code: "000000" } });
+  assert.deepEqual(r, { ok: false, error: "El código no es correcto" });
+  assert.ok(!s.calls.includes("upsertGuest") && !s.calls.includes("createGuestUser") && s.consents.length === 0);
+});
+
+test("Verificación del correo: «reenviar» manda otro código aunque venga uno escrito", async () => {
+  const s = withOtp();
+  const r = await connectGuest(s.deps, { ...s.input, form: { ...s.input.form, code: "123456", resend: true } });
+  assert.ok(r.ok && "needCode" in r);
+  assert.equal(s.log[0][0], "send");
+  assert.ok(!s.log.some((l) => l[0] === "verify"));
+});
+
+test("Verificación del correo: si no se pudo enviar, lo dice; y sin servicio de códigos no deja conectar", async () => {
+  const a = withOtp({ sendError: "No pudimos enviar el código" });
+  assert.deepEqual(await connectGuest(a.deps, a.input), { ok: false, error: "No pudimos enviar el código" });
+  const b = setup();
+  b.input.settings = { ...b.input.settings, verify_email: true }; // activado, pero el servidor no tiene el servicio
+  const r = await connectGuest(b.deps, b.input);
+  assert.ok(!r.ok && /verificación/i.test(r.error));
+  assert.ok(!b.calls.includes("createGuestUser"));
+});
+
+test("Verificación del correo: apagada, no se pide nada y todo sigue igual; un visitante ya autorizado tampoco la necesita", async () => {
+  const off = withOtp();
+  off.input.settings = { ...off.input.settings, verify_email: false };
+  const r = await connectGuest(off.deps, off.input);
+  assert.ok(r.ok && "redirect" in r);
+  assert.equal(off.log.length, 0);
+  const auth = setup({ host: { mac: MAC, authorized: true, bypassed: false, server: "hotspot-test" } });
+  auth.input.settings = { ...auth.input.settings, verify_email: true };
+  auth.deps.otp = { send: async () => { throw new Error("no debía enviar"); }, verify: async () => { throw new Error("no debía verificar"); } };
+  assert.ok((await connectGuest(auth.deps, auth.input)).ok);
+});

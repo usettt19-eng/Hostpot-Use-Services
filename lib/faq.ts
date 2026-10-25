@@ -184,6 +184,21 @@ export const FAQ: FaqGroup[] = [
     ],
   },
   {
+    id: "verificacion", title: "Verificación del correo (código)", items: [
+      { q: "¿Qué es la verificación del correo y cómo la activo?", a: [
+        "Con esta opción, el visitante recibe un código de 6 dígitos en su correo y debe escribirlo para conectarse. Así los correos que reúnes son reales (nadie puede usar el de otra persona) y, más adelante, podrás enviarles promociones sin riesgo de spam.",
+        "Se activa en **Diseño y horarios**, en «Acceso», con la casilla **Verificar el correo con un código de 6 dígitos**, y luego **Guardar y publicar**. El administrador de la plataforma debe haber configurado el correo de envío; si no, los visitantes no podrán conectarse, así que **pruébalo con tu propio correo antes de dejarlo activo**.",
+      ] },
+      { q: "El visitante dice que no le llega el código", a: [
+        "Pídele que revise la carpeta de correo no deseado y que confirme que escribió bien su correo; puede usar **Reenviar código** (hasta 3 veces en 15 minutos) o **Cambiar correo**. El código vence a los 10 minutos y se puede usar una sola vez.",
+        "Si a ninguno le llega, avisa al administrador de la plataforma: el correo de envío puede estar mal configurado. Mientras tanto, desactiva la casilla y publica para que los visitantes puedan conectarse.",
+      ] },
+      { q: "¿Cómo veo qué correos están verificados?", a: [
+        "En **Visitantes**, la columna **Verificado** dice «Sí» para quienes escribieron el código. Los que se conectaron antes de activar la opción figuran como «No» hasta que vuelvan a conectarse con el código.",
+      ] },
+    ],
+  },
+  {
     id: "promociones", title: "Promociones (módulo opcional)", items: [
       { q: "¿Qué son las promociones y por qué no veo «Promociones» en el menú?", a: [
         "Una promoción es lo que el visitante ve cuando pulsa «Conectarme» en tu portal y justo antes de recibir internet: una imagen, un mensaje y, si quieres, un botón con un enlace (tu menú, tu página, una oferta). Se muestra antes para que el teléfono no cierre la ventana del portal y se vea siempre.",
@@ -199,7 +214,7 @@ export const FAQ: FaqGroup[] = [
       ] },
       { q: "¿Cómo sé si funciona y qué datos guarda?", a: [
         "La lista muestra **impresiones** (veces que se mostró), **clics** y el porcentaje de clics. Son solo contadores: no se guarda quién la vio ni quién pulsó.",
-        "Para enviar promociones por correo hace falta antes verificar los correos de los visitantes; todavía no está disponible.",
+        "Para enviar promociones por correo hace falta antes verificar los correos de los visitantes (opción «Verificación del correo»); el envío de promociones por correo todavía no está disponible.",
       ] },
     ],
   },

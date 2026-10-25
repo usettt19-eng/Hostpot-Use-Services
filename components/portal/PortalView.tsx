@@ -29,6 +29,8 @@ const T = {
     staff: "Soy del personal", staffUser: "Usuario", staffPass: "Contraseña", staffButton: "Entrar",
     staffHelp: "¿Aún no tienes cuenta?", register: "Regístrate aquí",
     connecting: "Conectando…", previewDone: "Vista previa: en el local, aquí se te conectaría a la red.",
+    code: "Código de 6 dígitos", codeSent: "Te enviamos un código a {email}. Revisa también la carpeta de correo no deseado.",
+    resend: "Reenviar código", changeEmail: "Cambiar correo", verify: "Verificar y conectar",
   },
   en: {
     name: "Name", email: "Email", phone: "Phone", voucher: "Access code",
@@ -39,6 +41,8 @@ const T = {
     staff: "I am staff", staffUser: "Username", staffPass: "Password", staffButton: "Sign in",
     staffHelp: "No account yet?", register: "Register here",
     connecting: "Connecting…", previewDone: "Preview: at the venue, this would connect you to the network.",
+    code: "6-digit code", codeSent: "We sent a code to {email}. Check your spam folder too.",
+    resend: "Resend code", changeEmail: "Change email", verify: "Verify and connect",
   },
 } as const;
 
@@ -60,6 +64,8 @@ const CSS = `
 .pv-err{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#fee2e2;color:#7f1d1d;font-size:13px}
 .pv-ok{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#dcfce7;color:#14532d;font-size:13px}
 .pv-btn:disabled{opacity:.6;cursor:default}
+.pv-link{background:none;border:0;padding:0;font:inherit;color:var(--text);text-decoration:underline;cursor:pointer}
+.pv-link:disabled{opacity:.6;cursor:default}
 .pv-staff{margin-top:16px;font-size:13px;border-top:1px solid rgba(127,127,127,.3);padding-top:12px}
 .pv-staff a{color:var(--text);text-decoration:underline}
 .pv-foot{margin-top:16px;text-align:center;font-size:12px;opacity:.75}
@@ -109,7 +115,8 @@ export default function PortalView({ slug, staffLoginUrl, staffDst = "", hs = { 
         slug={slug} locale={locale} fields={s.fields} methods={s.methods} button={tx.button}
         termsVersion={termsVersion} terms={terms} hs={{ mac: hs.mac, ip: hs.ip, login: hs.login, orig: hs.orig }}
         t={{ name: t.name, email: t.email, phone: t.phone, voucher: t.voucher, accept: t.accept, terms: t.terms,
-             marketing: t.marketing, version: t.version, noTerms: t.noTerms, connecting: t.connecting, previewDone: t.previewDone }}
+             marketing: t.marketing, version: t.version, noTerms: t.noTerms, connecting: t.connecting, previewDone: t.previewDone,
+             code: t.code, codeSent: t.codeSent, resend: t.resend, changeEmail: t.changeEmail, verify: t.verify }}
       />
       {staffLoginUrl && (
         <StaffLogin loginUrl={staffLoginUrl} dst={staffDst} slug={slug}

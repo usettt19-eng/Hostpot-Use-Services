@@ -20,7 +20,7 @@ Portal web multitenant de WiFi para establecimientos (escuelas, restaurantes, pu
 | Establecimiento de prueba | `use-test` (restaurante) |
 
 ## 3. Migraciones (`supabase/migrations/`, cada una por separado y en orden)
-Todas aplicadas en Supabase (0001-0016). Para repetirlas en una base nueva: ejecutar cada archivo COMPLETO, en orden.
+Aplicadas en Supabase 0001-0016; la 0017 falta. Para repetirlas en una base nueva: ejecutar cada archivo COMPLETO, en orden.
 | # | Contenido | Estado |
 |---|---|---|
 | 0001 | Esquema base multitenant | Aplicada |
@@ -39,6 +39,7 @@ Todas aplicadas en Supabase (0001-0016). Para repetirlas en una base nueva: ejec
 | 0014 | Reparto del ancho de banda (totales y modo en `tenant_router_credentials`; mínimo y ráfaga en `bandwidth_profiles`; topes en `fixed_devices`) | Aplicada y verificada en el router de prueba |
 | 0015 | Módulos habilitables (`tenant_modules`, solo service role) | Aplicada |
 | 0016 | Módulo Promociones (`promotions`, `promotion_events`) | Aplicada |
+| 0017 | Verificación del correo con código (`guest_otps`, `guests.email_verified_at`) | **Sin aplicar** (probada en Postgres local; se puede repetir) |
 
 ## 4. Funcionalidad hecha
 | Área | Qué hay | Verificado |
@@ -68,16 +69,17 @@ Todas aplicadas en Supabase (0001-0016). Para repetirlas en una base nueva: ejec
 | Aislamiento de visitantes | Perfil de visitantes con `address-list=visitantes`; lista `equipos-fijos` mantenida por el portal; reglas del firewall en el bloque «Aislar a los visitantes» del script (`lib/isolation.ts`, `lib/router-script.ts`) | Probado en el router real: las tres reglas descartan paquetes (equipos fijos, redes privadas y administración del router) |
 | Módulos habilitables | `tenant_modules`: el dueño activa o desactiva módulos por establecimiento en `/platform` (`lib/modules.ts`, `lib/tenant-modules.ts`); menú, pantallas, rutas públicas y flujos lo comprueban | RLS en SQL local y pruebas unitarias; activado en el establecimiento de prueba |
 | Promociones (módulo) | `/admin/promotions`: campañas (imagen, mensaje, botón https, fechas, segmentos todos/nuevos/recurrentes/ausentes) que el visitante ve **antes** de recibir internet; la conexión ocurre al pulsar un botón (`/w/{slug}/promo/{id}`, pedido cifrado `lib/promo-token.ts`); impresiones y clics agregados, sin datos personales | **Probado en un teléfono real: el anuncio se ve.** Segmentos distintos de «Todos», iOS y el botón de la campaña, sin probar |
+| Verificación del correo (OTP) | Ajuste «Verificar el correo con un código de 6 dígitos» en `/admin/portal`: el visitante recibe un código por correo (SMTP, `lib/mail.ts`) y no se crea nada hasta escribirlo; formulario de dos pasos, reenviar, cambiar correo; `guest_otps` (migración 0017, solo el HMAC del código), límites por correo/IP/local, `Visitantes` muestra «Verificado» | Pruebas unitarias y del flujo y RLS en SQL local. **Sin desplegar ni probar con un correo real**: falta aplicar la 0017 y poner `SMTP_URL` y `MAIL_FROM` en el `.env` |
 | Seguridad | Credenciales del router cifradas, RLS, escritura solo por service role en tablas sensibles, CSP en `/w/*` | Ver `CLAUDE.md` |
 | Despliegue | Docker, nginx y HTTPS | En producción de pruebas |
-| Pruebas | `npm test` (161) y `supabase/tests/*_rls.sql` (base, portal, invitados, plataforma, personal, promociones) | Pasan |
+| Pruebas | `npm test` (172) y `supabase/tests/*_rls.sql` (base, portal, invitados, plataforma, personal, promociones) | Pasan |
 
 ## 5. Pendientes (por prioridad)
 1. **Seguridad del router** (referencia: `docs/CONFIG-ROUTER.md`): cerrar `www` y `bandwidth-server`, reglas de firewall de entrada básicas (establecidas, inválidas, túnel UDP 13231, ICMP, descartar el resto de la WAN), cerrar MAC-server y descubrimiento de vecinos hacia el puente del Hotspot, actualizar RouterOS (7.12.1; copia de seguridad antes), cambiar la contraseña del usuario `portal` y la de la malla Linksys/Velop (se escribieron en un chat). Después, meter lo seguro en el script del router.
 2. **Seguridad del servidor:** los puertos de Postgres/pooler (5432, 5433, 6543, 6544) están abiertos a internet y `ufw` está inactivo (es de otras apps, pero es el mayor riesgo; Docker salta `ufw`: publicarlos en `127.0.0.1`). `apt upgrade`.
 3. **Reparto:** medir el mínimo garantizado por dispositivo con la línea saturada (bajar el internet contratado a 6 Mbps, usuario + visitante + equipo fijo descargando, ver `rate` de cada cola; devolver a 30 Mbps); alinear los nombres de los planes en **Ancho de banda** con los perfiles del router (`Gerencia`, `Empleados`, `Admin` se ajustaron a mano) y revisar la bajada de `Admin` (`10480k`, parece un error); decidir si se mantiene PCQ para equipos fijos.
 4. **Aislamiento entre equipos WiFi del mismo punto de acceso:** el router no lo ve; activar el aislamiento de clientes o una red de invitados en el Velop.
-5. **Promociones:** probar los segmentos (nuevo, recurrente, ausente) con correos distintos, el botón de la campaña en iOS y Android y que los contadores suban. Siguiente: **verificación del correo con código (OTP)** y, solo después, envío de promociones por correo a quienes lo aceptaron (proveedor de correo, enlace de baja, revisar la ley de datos de Panamá).
+5. **Promociones:** probar los segmentos (nuevo, recurrente, ausente) con correos distintos, el botón de la campaña en iOS y Android y que los contadores suban. Siguiente: **desplegar y probar el OTP** (aplicar la 0017, poner `SMTP_URL` y `MAIL_FROM` en el `.env`, activar «Verificar el correo» y conectarse con un correo propio) y, solo después, envío de promociones por correo a quienes lo aceptaron y verificaron (enlace de baja, límites de envío, revisar la ley de datos de Panamá).
 6. **Recuperar contraseña del panel:** en Supabase → Authentication → URL Configuration, *Site URL* `https://connect.useservices.company` y `https://connect.useservices.company/auth/callback` en *Redirect URLs*; SMTP; `SITE_URL` en el `.env`; probar los flujos.
 7. **«Nueva clave WiFi»:** probarla con un usuario real (la clave nueva debe funcionar y la antigua fallar).
 8. **Landing:** rellenar `contactEmail` o `whatsapp` en `lib/site.ts` y revisar el texto antes de publicarla.
@@ -97,6 +99,7 @@ Todas aplicadas en Supabase (0001-0016). Para repetirlas en una base nueva: ejec
 - El personal sigue con aprobación manual; los invitados serán de autoservicio.
 - Nada de HTML, CSS ni JavaScript libres de los clientes en el portal.
 - Las funciones opcionales son **módulos** que el dueño de la plataforma activa por establecimiento (no se venden ni se activan desde el panel del cliente).
+- La verificación del correo es opcional por establecimiento, falla cerrada si el correo no está configurado y nunca guarda el código (solo su HMAC).
 - Promociones: se muestran **antes** de dar internet (el teléfono cierra la ventana del portal al detectar internet); solo contadores, sin guardar quién las vio; correo a visitantes únicamente después de verificar el correo.
 - El aislamiento de visitantes se hace con listas de direcciones (`visitantes`, `equipos-fijos`) que mantiene el portal y reglas de firewall que trae el script del router.
 - El reparto de velocidad cuelga todo de `PORTAL-ROOT`, que debe ir antes que la cola general del Hotspot.
@@ -137,6 +140,7 @@ Prueba funcional: crear establecimiento en `/register-school`, conectar el route
 ## 9. Registro de cambios (lo más reciente primero)
 | Fecha | Cambio | Commit |
 |---|---|---|
+| 2026-10-25 | **Verificación del correo con código (OTP)**: ajuste `verify_email` del portal, código de 6 dígitos por SMTP (`lib/otp.ts`, `lib/mail.ts`, `nodemailer`), formulario de dos pasos, `guest_otps` y `guests.email_verified_at` (migración 0017), límites de envío, columna «Verificado» en Visitantes, limpieza en el cron, manual. **Falta aplicar la 0017, configurar `SMTP_URL`/`MAIL_FROM` y probar con un correo real** | _este commit_ |
 | 2026-10-25 | Bitácora puesta al día: migraciones 0001-0016 aplicadas, funcionalidad nueva (equipos fijos con IP por MAC, reparto, aislamiento, módulos, Promociones), pendientes reordenados por prioridad, decisiones, lecciones del router y de los teléfonos, y registro ordenado por fecha. El anuncio de Promociones se ve en el teléfono | _este commit_ |
 | 2026-10-25 | Promociones se muestra **antes** de dar internet: en el teléfono la ventana del portal se cerraba al detectar internet y la campaña no se veía. `connectGuest` manda a la página de la campaña con un pedido cifrado (`lib/promo-token.ts`, 10 min) y la conexión real ocurre al pulsar «Continuar a internet» o el botón de la campaña (`/go`). Probado con pruebas unitarias; **probado en un teléfono real: el anuncio se ve** | `c24f5d0` |
 | 2026-10-24 | **Módulos habilitables por establecimiento** (`tenant_modules`, migración 0015, `lib/modules.ts`; el dueño los activa en `/platform`) y primer módulo, **Promociones** (migración 0016, `lib/promotions.ts`, `/admin/promotions`, `/w/{slug}/promo/{id}`): campañas con imagen, mensaje y enlace https que el visitante ve justo después de conectarse, segmentadas (todos, nuevos, recurrentes, vuelven tras una ausencia), con vigencia e impresiones/clics agregados. Probado con pruebas unitarias, del flujo y de RLS en SQL local; Migraciones 0015 y 0016 aplicadas; **probado en el flujo real**: la campaña activa («Todos») se ve al conectar como visitante | `d5e659b` |

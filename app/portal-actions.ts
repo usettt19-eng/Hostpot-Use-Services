@@ -34,6 +34,7 @@ function settingsFromForm(fd: FormData, base: PortalSettings): unknown {
     methods: METHODS.filter((m) => fd.get(`method_${m}`) === "on"),
     fields: { name: mode("field_name"), email: mode("field_email"), phone: mode("field_phone") },
     session_minutes: Number(str(fd, "session_minutes") || 120),
+    verify_email: fd.get("verify_email") === "on",
     redirect_url: str(fd, "redirect_url").trim(),
     privacy_url: str(fd, "privacy_url").trim(),
     terms: { es: str(fd, "terms_es"), en: str(fd, "terms_en") },

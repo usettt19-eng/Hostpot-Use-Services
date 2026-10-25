@@ -38,6 +38,8 @@ export const portalSettingsSchema = z.object({
     .refine((m) => new Set(m).size === m.length, "Métodos repetidos"),
   fields: z.object({ name: fieldMode, email: fieldMode, phone: fieldMode }),
   session_minutes: z.number().int().min(10, "Mínimo 10 minutos").max(1440, "Máximo 24 horas").default(120),
+  /** Pide un código enviado al correo antes de conectar (requiere el correo configurado en el servidor). */
+  verify_email: z.boolean().default(false),
   redirect_url: httpsUrl,
   privacy_url: httpsUrl,
   terms: z.object({ es: z.string().max(8000), en: z.string().max(8000) }),
@@ -61,6 +63,7 @@ export function defaultSettings(name: string): PortalSettings {
     methods: ["email"],
     fields: { name: "optional", email: "required", phone: "off" },
     session_minutes: 120,
+    verify_email: false,
     redirect_url: "",
     privacy_url: "",
     terms: { es: "", en: "" },

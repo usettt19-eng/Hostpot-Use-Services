@@ -64,3 +64,10 @@ export async function syncGuestSessions(tenantId: string): Promise<{ checked: nu
   }
   return { checked: open.length, ended };
 }
+
+/** Borra los códigos de verificación de más de un día (vencidos o usados). Los llama el cron; si la migración 0017 falta, no hace nada. */
+export async function purgeOldOtps(): Promise<number> {
+  const before = new Date(Date.now() - 86_400_000).toISOString();
+  const { data, error } = await createAdminClient().from("guest_otps").delete().lt("created_at", before).select("id");
+  return error ? 0 : (data?.length ?? 0);
+}

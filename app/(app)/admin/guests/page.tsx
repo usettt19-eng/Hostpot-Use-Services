@@ -32,6 +32,12 @@ export default async function GuestsPage() {
     ? await supabase.from("guest_consents").select("guest_id, granted, created_at")
         .eq("kind", "marketing").in("guest_id", ids).order("created_at", { ascending: false })
     : { data: [] };
+  // Correo verificado: consulta aparte para que la pantalla siga funcionando si la migración 0017 aún no está aplicada
+  const verifiedIds = new Set<string>();
+  if (ids.length) {
+    const ver = await supabase.from("guests").select("id, email_verified_at").in("id", ids).not("email_verified_at", "is", null);
+    for (const r of ver.data ?? []) verifiedIds.add(r.id);
+  }
   const marketing = new Map<string, boolean>();
   for (const c of consents ?? []) if (!marketing.has(c.guest_id)) marketing.set(c.guest_id, c.granted); // el más reciente
 
@@ -62,12 +68,12 @@ export default async function GuestsPage() {
       <div className="card scroll">
         <h2>Últimos visitantes</h2>
         <table className="table">
-          <thead><tr><th>Correo</th><th>Nombre</th><th>Visitas</th><th>Primera</th><th>Última</th><th>Promociones</th><th /></tr></thead>
+          <thead><tr><th>Correo</th><th>Verificado</th><th>Nombre</th><th>Visitas</th><th>Primera</th><th>Última</th><th>Promociones</th><th /></tr></thead>
           <tbody>
-            {(guests ?? []).length === 0 && <tr><td colSpan={7} className="muted">Todavía no hay visitantes.</td></tr>}
+            {(guests ?? []).length === 0 && <tr><td colSpan={8} className="muted">Todavía no hay visitantes.</td></tr>}
             {(guests ?? []).map((g) => (
               <tr key={g.id}>
-                <td>{safeEmail(g.email_enc)}</td><td>{g.full_name ?? "—"}</td><td>{g.visit_count}</td>
+                <td>{safeEmail(g.email_enc)}</td><td>{verifiedIds.has(g.id) ? "Sí" : "No"}</td><td>{g.full_name ?? "—"}</td><td>{g.visit_count}</td>
                 <td>{when(g.first_seen_at)}</td><td>{when(g.last_seen_at)}</td>
                 <td>{marketing.get(g.id) ? "Sí" : "No"}</td>
                 <td><form action={deleteGuest}><input type="hidden" name="id" value={g.id} /><button className="danger">Eliminar</button></form></td>

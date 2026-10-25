@@ -111,6 +111,13 @@ export function EditorForm({ s }: { s: PortalSettings }) {
         <div><label>Teléfono</label>{sel("field_phone", s.fields.phone, FIELD_MODES, FIELD_MODE_LABEL)}</div>
       </div>
       <p className="muted">Pide solo los datos que realmente necesitas: cada dato extra debe justificarse legalmente.</p>
+      <label className="inline" style={{ margin: "12px 0 0" }}>
+        <input type="checkbox" name="verify_email" defaultChecked={s.verify_email} style={{ width: "auto" }} /> Verificar el correo con un código de 6 dígitos
+      </label>
+      <p className="muted">
+        El visitante recibe un código por correo y debe escribirlo para conectarse: así los correos que reúnes son reales y podrás enviarles promociones sin
+        riesgo de spam. Requiere que el correo de envío esté configurado en el servidor; si no, los visitantes no podrán conectarse. Pruébalo antes de publicar.
+      </p>
       <label>Duración de la sesión del invitado (minutos, 10 a 1440)</label>
       <input name="session_minutes" type="number" min={10} max={1440} defaultValue={s.session_minutes} required />
       <label>Después de conectar, ir a (https://…, opcional)</label>

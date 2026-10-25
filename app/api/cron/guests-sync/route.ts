@@ -1,5 +1,5 @@
 import { isAuthorizedCron } from "@/lib/cron-auth";
-import { syncAllGuestSessions } from "@/lib/guest-sync";
+import { purgeOldOtps, syncAllGuestSessions } from "@/lib/guest-sync";
 import { syncAllStaffSessions } from "@/lib/staff-history";
 import { keepParentFirstAll } from "@/lib/sharing";
 
@@ -29,5 +29,6 @@ export async function GET(req: Request) {
     console.error("queues-order:", e instanceof Error ? e.message : "error");
     return null;
   });
-  return Response.json({ ok: true, ...result, staff, queues }, { headers: { "Cache-Control": "no-store" } });
+  const otpsPurged = await purgeOldOtps().catch(() => 0);
+  return Response.json({ ok: true, ...result, staff, queues, otpsPurged }, { headers: { "Cache-Control": "no-store" } });
 }

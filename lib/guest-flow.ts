@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { PortalSettings } from "./portal-settings.ts";
 import type { GuestHistory } from "./promotions.ts";
+import { maskEmail } from "./otp.ts";
 import {
   buildLoginRedirect, isIPv4, isMac, isValidEmail, normalizeEmail, normalizeMac, normalizePhone, parseLoginUrl, routerDuration, sanitizeOrig,
 } from "./guest-utils.ts";
@@ -27,7 +28,7 @@ export type SessionRow = {
 export type FlowDb = {
   countSessions(tenantId: string, sinceIso: string, ip?: string): Promise<number>;
   /** `visitCount` ya cuenta la visita actual; `lastSeenBefore` es la visita anterior (null si es la primera). */
-  upsertGuest(tenantId: string, g: { emailHash: string; emailEnc: string; fullName: string | null; phoneEnc: string | null }): Promise<{ id: string; visitCount?: number; lastSeenBefore?: Date | null }>;
+  upsertGuest(tenantId: string, g: { emailHash: string; emailEnc: string; fullName: string | null; phoneEnc: string | null; emailVerified?: boolean }): Promise<{ id: string; visitCount?: number; lastSeenBefore?: Date | null }>;
   insertConsents(rows: ConsentRow[]): Promise<void>;
   insertSession(row: SessionRow): Promise<string>;
   updateSession(id: string, patch: { status: "pending" | "active" | "ended" | "failed" }): Promise<void>;
@@ -41,6 +42,11 @@ export type FlowDeps = {
   encrypt(value: string): string;
   randomHex(bytes: number): string;
   randomPassword(): string;
+  /** Verificación del correo con código: `send` lo envía (con sus límites) y `verify` lo comprueba y lo consume. Ausente = no disponible. */
+  otp?: {
+    send(tenantId: string, email: string, locale: "es" | "en"): Promise<{ ok: true } | { ok: false; error: string }>;
+    verify(tenantId: string, email: string, code: string): Promise<{ ok: true } | { ok: false; error: string }>;
+  };
   /**
    * Módulo Promociones: página de la campaña que le toca al visitante, o null si no hay. Se le muestra ANTES de darle internet
    * (así el teléfono no cierra la ventana del portal): la conexión real ocurre al pulsar un botón de esa página, y para eso
@@ -57,7 +63,8 @@ export type FlowInput = {
   termsVersion: number;
   termsText: string;
   plan: { name: string; downloadKbps: number; uploadKbps: number };
-  form: { email: string; name: string; phone: string; acceptTerms: boolean; acceptMarketing: boolean };
+  form: { email: string; name: string; phone: string; acceptTerms: boolean; acceptMarketing: boolean; code?: string; resend?: boolean };
+  locale?: "es" | "en";
   hs: { mac: string; ip: string; login: string; orig: string };
   userAgent: string;
 };
@@ -65,6 +72,7 @@ export type FlowInput = {
 export type FlowResult =
   | { ok: true; simulated: true }
   | { ok: true; redirect: string }
+  | { ok: true; needCode: true; email: string }
   | { ok: false; error: string };
 
 const fail = (error: string): FlowResult => ({ ok: false, error });
@@ -124,12 +132,27 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   const dst = st.redirect_url || sanitizeOrig(hs.orig);
   if (host.authorized || host.bypassed) return { ok: true, redirect: dst || login.replace(/\/login$/, "/status") };
 
+  // Verificación del correo (opcional): primero se envía un código; al volver con el código correcto se sigue. Nada se guarda antes.
+  let verified = false;
+  if (st.verify_email) {
+    if (!deps.otp) return fail("La verificación del correo no está disponible por ahora. Avisa al personal del local");
+    if (form.resend || !form.code?.trim()) {
+      const sent = await deps.otp.send(input.tenantId, email, input.locale ?? st.default_locale);
+      if (!sent.ok) return fail(sent.error);
+      return { ok: true, needCode: true, email: maskEmail(email) };
+    }
+    const v = await deps.otp.verify(input.tenantId, email, form.code);
+    if (!v.ok) return fail(v.error);
+    verified = true;
+  }
+
   // Persona, consentimientos y sesión
   const { id: guestId, visitCount, lastSeenBefore } = await deps.db.upsertGuest(input.tenantId, {
     emailHash: deps.blindIndex(input.tenantId, email),
     emailEnc: deps.encrypt(email),
     fullName: name || null,
     phoneEnc: phone ? deps.encrypt(phone) : null,
+    emailVerified: verified,
   });
   const ua = input.userAgent.slice(0, 200) || null;
   await deps.db.insertConsents([
