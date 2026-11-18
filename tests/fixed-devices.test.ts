@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bindingStatus, parseFixedDevice } from "../lib/fixed-devices.ts";
+import { resolveFixedIp, bindingStatus, parseFixedDevice } from "../lib/fixed-devices.ts";
 
 const base = { mac: "aa-bb-cc-dd-ee-ff", name: "Impresora recepción", ip: "", location: "Recepción", reason: "Imprime facturas" };
 
@@ -37,4 +37,12 @@ test("velocidades opcionales de un equipo fijo: Mbps a kbps, juntas", () => {
   assert.equal(parseFixedDevice({ ...base, ip: "", maxDownMbps: "4", maxUpMbps: "1" }).ok, true);  // sin IP: se busca en el router por la MAC
   assert.equal(parseFixedDevice({ ...base, maxDownMbps: "4" }).ok, false);                           // bajada sin subida
   for (const bad of ["0", "-3", "abc", "1e9"]) assert.equal(parseFixedDevice({ ...base, maxDownMbps: bad, maxUpMbps: bad }).ok, false, bad);
+});
+
+test("la IP que el router ve para la MAC manda sobre la escrita; si no la ve, vale la escrita", () => {
+  const found = new Map([["AA:BB:CC:DD:EE:01", "192.168.200.47"]]);
+  assert.equal(resolveFixedIp({ mac: "aa:bb:cc:dd:ee:01", ip: "192.168.200.40" }, found), "192.168.200.47", "la escrita quedó vieja");
+  assert.equal(resolveFixedIp({ mac: "AA:BB:CC:DD:EE:01", ip: null }, found), "192.168.200.47");
+  assert.equal(resolveFixedIp({ mac: "AA:BB:CC:DD:EE:02", ip: "192.168.200.60" }, found), "192.168.200.60", "apagado: la escrita");
+  assert.equal(resolveFixedIp({ mac: "AA:BB:CC:DD:EE:02", ip: null }, found), null);
 });

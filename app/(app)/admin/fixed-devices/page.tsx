@@ -1,7 +1,7 @@
 import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { requireAdminTenant } from "@/lib/portal";
 import { hasSharing, isConfigured, listIpBindings, lookupIpsByMac } from "@/lib/mikrotik";
-import { bindingStatus } from "@/lib/fixed-devices";
+import { bindingStatus, resolveFixedIp } from "@/lib/fixed-devices";
 import Link from "next/link";
 import { FixedDeviceForm, EditFixedDeviceForm } from "./form";
 import { removeFixedDevice } from "@/app/fixed-device-actions";
@@ -31,8 +31,8 @@ export default async function FixedDevicesPage({ searchParams }: { searchParams:
   const sharing = hasSharing(cfg);
   // Con reparto activo, los equipos sin IP escrita se buscan en el router por su MAC
   let detected = new Map<string, string>();
-  if (sharing && isConfigured(cfg) && rows.some((r) => !r.ip)) detected = await lookupIpsByMac(cfg).catch(() => new Map<string, string>());
-  const ipOf = (r: Row) => r.ip ?? detected.get(r.mac.toUpperCase()) ?? null;
+  if (sharing && isConfigured(cfg) && rows.length) detected = await lookupIpsByMac(cfg).catch(() => new Map<string, string>());
+  const ipOf = (r: Row) => resolveFixedIp({ mac: r.mac, ip: r.ip }, detected);
   const speedText = (r: Row) => {
     if (!sharing) return "—";
     if (!ipOf(r)) return "No se encontró su IP: sin límite";
@@ -63,7 +63,7 @@ export default async function FixedDevicesPage({ searchParams }: { searchParams:
             {rows.length === 0 && <tr><td colSpan={7} className="muted">No hay equipos fijos registrados.</td></tr>}
             {rows.map((r) => (
               <tr key={r.id}>
-                <td>{r.name}</td><td><code>{r.mac}</code></td><td>{r.ip ?? (ipOf(r) ? `${ipOf(r)} (detectada)` : "—")}</td>
+                <td>{r.name}</td><td><code>{r.mac}</code></td><td>{ipOf(r) ? (ipOf(r) === r.ip ? ipOf(r) : `${ipOf(r)} (detectada)`) : "—"}</td>
                 <td>{r.location ?? "—"}</td><td>{speedText(r)}</td>
                 <td>{routerError ? "desconocido" : bindingStatus(r.router_binding_id, routerIds)}</td>
                 <td style={{ whiteSpace: "nowrap" }}>

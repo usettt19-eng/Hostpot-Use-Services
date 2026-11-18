@@ -47,3 +47,12 @@ export function bindingStatus(routerBindingId: string | null, routerIds: Set<str
   if (!routerBindingId) return "no encontrado en el router";
   return routerIds.has(routerBindingId) ? "aplicado" : "no encontrado en el router";
 }
+
+/**
+ * IP con la que se crean las colas y la lista de un equipo fijo: la que el router ve hoy para su MAC; si no la ve (apagado), la escrita.
+ * La detectada manda porque el DHCP puede haber reasignado la escrita a otro equipo (pasó con una tablet y un computador): la cola
+ * limitaría a quien no es.
+ */
+export function resolveFixedIp(d: { mac: string; ip: string | null }, found: Map<string, string>): string | null {
+  return found.get(d.mac.toUpperCase()) ?? d.ip ?? null;
+}

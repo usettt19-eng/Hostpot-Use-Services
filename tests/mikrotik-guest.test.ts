@@ -12,6 +12,7 @@ import {
 
 // Router falso por HTTPS con certificado autofirmado: comprueba el uso de la API REST (no es un router real)
 let server: https.Server;
+let tlsConnections = 0;
 let cfg: RouterConfig;
 const seen: { method: string; url: string; auth?: string; body?: any }[] = [];
 
@@ -110,6 +111,7 @@ before(async () => {
       res.statusCode = 404; res.end(JSON.stringify({ error: 404 }));
     });
   });
+  server.on("secureConnection", () => { tlsConnections++; });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const port = (server.address() as any).port;
   cfg = { router_url: `https://127.0.0.1:${port}`, router_user: "portal", router_password: "x", router_cert_fingerprint: fp };
@@ -261,6 +263,16 @@ test("lista blanca de las campañas: agrega dominio y subdominios que faltan y q
   const dels = seen.filter((x) => x.method === "DELETE" && x.url.includes("walled-garden/")).map((x) => x.url);
   assert.ok(dels.some((u) => u.endsWith("/*W3")), "quita el sitio de una campaña que ya no está");
   assert.ok(!dels.some((u) => u.endsWith("/*W4") || u.endsWith("/*W5")), "no toca el portal ni lo puesto a mano");
+});
+
+test("las consultas (GET) reutilizan la conexión TLS; una huella distinta sigue siendo rechazada", async () => {
+  await listIpBindings(cfg); // abre (o ya tiene) la conexión
+  const before = tlsConnections;
+  for (let i = 0; i < 4; i++) await listIpBindings(cfg);
+  assert.equal(tlsConnections, before, "4 consultas más sin ningún handshake nuevo");
+  await assert.rejects(() => listIpBindings({ ...cfg, router_cert_fingerprint: "AA".repeat(32) }), /huella/);
+  await listIpBindings(cfg); // la conexión buena sigue sirviendo
+  assert.ok(tlsConnections <= before + 1, "a lo sumo la de la huella equivocada abrió otra; la buena se reutilizó");
 });
 
 test("PORTAL-ROOT se mueve solo si la cola general del Hotspot va delante; una cola de usuario arriba no cuenta", async () => {

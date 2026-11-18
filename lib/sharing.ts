@@ -2,6 +2,7 @@ import { createAdminClient, getRouterConfig } from "@/lib/supabase";
 import { ensureParentFirst, lookupIpsByMac, syncFixedAddressList, ensureParentQueue, hasSharing, removeStaleFixedQueues, syncBandwidthProfile, upsertFixedQueue, upsertPoolQueue, type RouterConfig } from "@/lib/mikrotik";
 import { FIXED_POOL, fixedQueueName, poolGuarantee, poolTarget, splitFixed } from "@/lib/queues";
 import { selectPlans, tuningOf } from "@/lib/plans";
+import { resolveFixedIp } from "@/lib/fixed-devices";
 import { VISITOR_LIST } from "@/lib/isolation";
 import { DEFAULT_ROLE, type EstablishmentType } from "@/lib/roles";
 
@@ -48,9 +49,9 @@ export async function syncFixedAddressListFor(tenantId: string, cfg: RouterConfi
   const { data, error } = await createAdminClient().from("fixed_devices").select("mac, name, ip").eq("tenant_id", tenantId);
   if (error) return { added: 0, removed: 0 };
   const rows = data ?? [];
-  const found = rows.some((d) => !d.ip) ? await lookupIpsByMac(cfg).catch(() => new Map<string, string>()) : new Map<string, string>();
+  const found = rows.length ? await lookupIpsByMac(cfg).catch(() => new Map<string, string>()) : new Map<string, string>();
   const entries = rows
-    .map((d) => ({ address: d.ip ?? found.get(String(d.mac).toUpperCase()) ?? "", name: String(d.name) }))
+    .map((d) => ({ address: resolveFixedIp({ mac: String(d.mac), ip: d.ip }, found) ?? "", name: String(d.name) }))
     .filter((e) => e.address);
   return syncFixedAddressList(cfg, entries);
 }
@@ -70,16 +71,14 @@ export async function syncFixedQueues(tenantId: string, cfg: RouterConfig): Prom
   const { data, error } = await db.from("fixed_devices")
     .select("mac, ip, max_down_kbps, max_up_kbps, min_kbps").eq("tenant_id", tenantId);
   if (error) return { individual: 0, pool: 0, withoutIp: 0, detected: 0, errors }; // migración 0014 sin aplicar
-  // Los equipos sin IP escrita se buscan en el router por su MAC (hosts del Hotspot, DHCP, ARP)
+  // La IP de cada equipo se busca en el router por su MAC (hosts del Hotspot, DHCP, ARP); la escrita solo vale si no lo ve
   let rows = data ?? [];
   let detected = 0;
-  if (rows.some((d) => !d.ip)) {
+  if (rows.length) {
     const found = await lookupIpsByMac(cfg).catch(() => new Map<string, string>());
     rows = rows.map((d) => {
-      if (d.ip) return d;
-      const ip = found.get(String(d.mac).toUpperCase());
-      if (ip) detected++;
-      return { ...d, ip: ip ?? null };
+      if (found.has(String(d.mac).toUpperCase())) detected++;
+      return { ...d, ip: resolveFixedIp({ mac: String(d.mac), ip: d.ip }, found) };
     });
   }
   const { individual, pool, withoutIp } = splitFixed(rows);
@@ -114,29 +113,38 @@ export async function syncFixedQueues(tenantId: string, cfg: RouterConfig): Prom
   return { individual: okIndividual, pool: okPool, withoutIp, detected, errors };
 }
 
-/** Última combinación MAC=IP detectada por establecimiento: evita rehacer las colas de los fijos si nada cambió. En memoria, como `rate-limit`. */
+/** Última combinación MAC=IP por establecimiento: evita rehacer las colas de los fijos si nada cambió. En memoria, como `rate-limit`. */
 const detectedSignature = new Map<string, string>();
+/** Última vez que se hizo el mantenimiento pesado de cada establecimiento (en memoria). */
+const lastMaintenance = new Map<string, number>();
+/** Cada cuánto se repiten las consultas de mantenimiento al router. Cada consulta cuesta procesador en un router pequeño. */
+export const MAINTENANCE_EVERY_MS = 5 * 60_000;
 
 /**
- * Tareas de mantenimiento del reparto por establecimiento, llamadas por el cron cada minuto:
- *  - deja `PORTAL-ROOT` de primera (al reiniciar el router o el Hotspot la cola general puede volver a quedar delante);
- *  - si hay equipos fijos sin IP escrita, vuelve a buscar su IP por MAC y rehace sus colas solo si alguna cambió (el DHCP puede reasignarla).
+ * Mantenimiento del reparto por establecimiento, llamado por el cron cada minuto pero ejecutado cada 5 (el router es pequeño y cada
+ * consulta cuesta; aplicar o editar equipos lo hace al instante por su cuenta):
+ *  - deja `PORTAL-ROOT` delante de la cola general del Hotspot (al reiniciar el router o el Hotspot puede volver a quedar detrás);
+ *  - vuelve a buscar la IP de cada equipo fijo por su MAC y rehace sus colas y su lista solo si alguna cambió (el DHCP puede reasignarla).
  */
-export async function keepParentFirstAll(): Promise<{ checked: number; moved: number; refreshed: number }> {
+export async function keepParentFirstAll(now = Date.now()): Promise<{ checked: number; moved: number; refreshed: number }> {
   const db = createAdminClient();
   const { data, error } = await db.from("tenant_router_credentials").select("tenant_id").not("total_down_kbps", "is", null);
   if (error) return { checked: 0, moved: 0, refreshed: 0 }; // migración 0014 sin aplicar
   let moved = 0;
   let refreshed = 0;
+  let checked = 0;
   for (const r of data ?? []) {
     const tenantId = r.tenant_id as string;
+    if (now - (lastMaintenance.get(tenantId) ?? 0) < MAINTENANCE_EVERY_MS) continue;
+    lastMaintenance.set(tenantId, now);
+    checked++;
     try {
       const cfg = await getRouterConfig(tenantId);
       if (await ensureParentFirst(cfg)) moved++;
-      const { data: ipless } = await db.from("fixed_devices").select("mac").eq("tenant_id", tenantId).is("ip", null);
-      if (!ipless?.length) { detectedSignature.delete(tenantId); continue; }
+      const { data: devices } = await db.from("fixed_devices").select("mac, ip").eq("tenant_id", tenantId);
+      if (!devices?.length) { detectedSignature.delete(tenantId); continue; }
       const found = await lookupIpsByMac(cfg);
-      const sig = ipless.map((d) => `${d.mac}=${found.get(String(d.mac).toUpperCase()) ?? ""}`).sort().join(",");
+      const sig = devices.map((d) => `${d.mac}=${resolveFixedIp({ mac: String(d.mac), ip: d.ip }, found) ?? ""}`).sort().join(",");
       if (detectedSignature.get(tenantId) === sig) continue;
       await syncFixedQueues(tenantId, cfg);
       await syncFixedAddressListFor(tenantId, cfg);
@@ -146,5 +154,5 @@ export async function keepParentFirstAll(): Promise<{ checked: number; moved: nu
       console.error("keepParentFirst:", e instanceof Error ? e.message : "error");
     }
   }
-  return { checked: data?.length ?? 0, moved, refreshed };
+  return { checked, moved, refreshed };
 }

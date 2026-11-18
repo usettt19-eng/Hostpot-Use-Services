@@ -32,21 +32,38 @@ export const normalizeFingerprint = (f: string | null | undefined) =>
   (f ?? "").replace(/[^0-9a-f]/gi, "").toUpperCase();
 
 /**
+ * Conexiones reutilizables para las consultas (GET). Cada conexión TLS nueva cuesta mucho procesador en un router pequeño (en un hEX lite,
+ * el cron del portal llegó a pesar un 40 % del CPU con 10 handshakes por minuto), así que las lecturas comparten una sola conexión por
+ * router. Las escrituras siguen usando una conexión propia, para no arriesgar que una conexión inactiva cerrada por el router las pierda.
+ */
+const agents = new Map<string, https.Agent>();
+function getAgent(url: URL, pin: string): https.Agent {
+  const key = `${url.host}|${pin}`;
+  let a = agents.get(key);
+  if (!a) {
+    a = new https.Agent({ keepAlive: true, maxSockets: 1, maxFreeSockets: 1, timeout: 15_000, rejectUnauthorized: !pin });
+    agents.set(key, a);
+  }
+  return a;
+}
+
+/**
  * Llamada REST a RouterOS. Con huella configurada acepta certificados autofirmados,
  * pero solo si coinciden con ella; los datos (incluidas las credenciales) no se envían
- * hasta verificar la huella.
+ * hasta verificar la huella (también en una conexión reutilizada).
  */
-function rest<T>(c: RouterConfig, method: string, path: string, body?: unknown): Promise<T> {
+function rest<T>(c: RouterConfig, method: string, path: string, body?: unknown, fresh = false): Promise<T> {
   const url = new URL(`${c.router_url!.replace(/\/$/, "")}/rest${path}`);
   const pin = normalizeFingerprint(c.router_cert_fingerprint);
   const payload = body ? JSON.stringify(body) : undefined;
+  const pooled = method === "GET" && !fresh;
 
   return new Promise<T>((resolve, reject) => {
     const req = https.request(
       url,
       {
         method,
-        agent: false,
+        agent: pooled ? getAgent(url, pin) : false,
         timeout: 8000,
         rejectUnauthorized: !pin,
         headers: {
@@ -72,15 +89,25 @@ function rest<T>(c: RouterConfig, method: string, path: string, body?: unknown):
       }
     );
     req.on("timeout", () => req.destroy(new Error("El router no respondió a tiempo")));
-    req.on("error", reject);
+    req.on("error", (e: NodeJS.ErrnoException) => {
+      // Una conexión inactiva que el router ya cerró falla al reutilizarla: se repite una vez con una conexión nueva
+      if (pooled && (req as unknown as { reusedSocket?: boolean }).reusedSocket && (e.code === "ECONNRESET" || e.code === "EPIPE")) {
+        return rest<T>(c, method, path, body, true).then(resolve, reject);
+      }
+      reject(e);
+    });
     req.on("socket", (socket) => {
-      socket.once("secureConnect", () => {
+      const tls = socket as TLSSocket;
+      const send = () => {
         if (pin) {
-          const got = normalizeFingerprint((socket as TLSSocket).getPeerCertificate().fingerprint256);
+          const got = normalizeFingerprint(tls.getPeerCertificate().fingerprint256);
           if (got !== pin) return req.destroy(new Error("La huella del certificado del router no coincide"));
         }
         req.end(payload);
-      });
+      };
+      // Conexión reutilizada: el handshake ya ocurrió (y la huella se verificó al abrirla)
+      if (!tls.connecting && tls.getProtocol?.()) send();
+      else tls.once("secureConnect", send);
     });
   });
 }
