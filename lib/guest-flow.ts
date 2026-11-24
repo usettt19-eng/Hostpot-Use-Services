@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { PortalSettings } from "./portal-settings.ts";
 import type { GuestHistory } from "./promotions.ts";
 import { maskEmail } from "./otp.ts";
+import { cleanAnswers, validateAnswers, type Answers, type QuestionConfig } from "./guest-questions.ts";
 import {
   buildLoginRedirect, isIPv4, isMac, isValidEmail, normalizeEmail, normalizeMac, normalizePhone, parseLoginUrl, routerDuration, sanitizeOrig,
 } from "./guest-utils.ts";
@@ -28,7 +29,7 @@ export type SessionRow = {
 export type FlowDb = {
   countSessions(tenantId: string, sinceIso: string, ip?: string): Promise<number>;
   /** `visitCount` ya cuenta la visita actual; `lastSeenBefore` es la visita anterior (null si es la primera). */
-  upsertGuest(tenantId: string, g: { emailHash: string; emailEnc: string; fullName: string | null; phoneEnc: string | null; emailVerified?: boolean }): Promise<{ id: string; visitCount?: number; lastSeenBefore?: Date | null }>;
+  upsertGuest(tenantId: string, g: { emailHash: string; emailEnc: string; fullName: string | null; phoneEnc: string | null; emailVerified?: boolean; profile?: Answers }): Promise<{ id: string; visitCount?: number; lastSeenBefore?: Date | null; profile?: Answers }>;
   insertConsents(rows: ConsentRow[]): Promise<void>;
   insertSession(row: SessionRow): Promise<string>;
   updateSession(id: string, patch: { status: "pending" | "active" | "ended" | "failed" }): Promise<void>;
@@ -63,8 +64,10 @@ export type FlowInput = {
   termsVersion: number;
   termsText: string;
   plan: { name: string; downloadKbps: number; uploadKbps: number };
-  form: { email: string; name: string; phone: string; acceptTerms: boolean; acceptMarketing: boolean; code?: string; resend?: boolean };
+  form: { email: string; name: string; phone: string; acceptTerms: boolean; acceptMarketing: boolean; code?: string; resend?: boolean; answers?: Record<string, string> };
   locale?: "es" | "en";
+  /** Preguntas al visitante que hace este local (solo con el módulo activo y nunca en escuelas); vacío = ninguna. */
+  questions?: QuestionConfig[];
   hs: { mac: string; ip: string; login: string; orig: string };
   userAgent: string;
 };
@@ -102,6 +105,14 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   if (st.fields.name === "required" && !name) return fail("Escribe tu nombre");
   const phone = normalizePhone(form.phone);
   if (st.fields.phone === "required" && !phone) return fail("Escribe un teléfono válido");
+
+  // Preguntas al visitante (módulo): las obligatorias deben venir contestadas y solo se aceptan opciones del catálogo
+  let answers: Answers = {};
+  if (input.questions?.length) {
+    const v = validateAnswers(input.questions, form.answers ?? {}, input.locale ?? st.default_locale);
+    if (!v.ok) return fail(v.error);
+    answers = v.answers;
+  }
 
   if (!deps.router) return fail("Este local todavía no tiene el router configurado");
 
@@ -147,12 +158,13 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   }
 
   // Persona, consentimientos y sesión
-  const { id: guestId, visitCount, lastSeenBefore } = await deps.db.upsertGuest(input.tenantId, {
+  const { id: guestId, visitCount, lastSeenBefore, profile: saved } = await deps.db.upsertGuest(input.tenantId, {
     emailHash: deps.blindIndex(input.tenantId, email),
     emailEnc: deps.encrypt(email),
     fullName: name || null,
     phoneEnc: phone ? deps.encrypt(phone) : null,
     emailVerified: verified,
+    ...(Object.keys(answers).length ? { profile: answers } : {}),
   });
   const ua = input.userAgent.slice(0, 200) || null;
   await deps.db.insertConsents([
@@ -185,7 +197,7 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   // Con el módulo Promociones, el visitante pasa primero por su campaña; un fallo aquí nunca impide conectar
   if (deps.promo) {
     try {
-      const page = await deps.promo(input.tenantId, { visitCount: visitCount ?? 1, lastSeenBefore: lastSeenBefore ?? null }, { login, username, password, next: dst });
+      const page = await deps.promo(input.tenantId, { visitCount: visitCount ?? 1, lastSeenBefore: lastSeenBefore ?? null, answers: { ...cleanAnswers(saved), ...answers } }, { login, username, password, next: dst });
       if (page) return { ok: true, redirect: page };
     } catch {
       // se conecta sin campaña

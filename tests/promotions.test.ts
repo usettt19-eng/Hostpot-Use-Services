@@ -13,7 +13,7 @@ const now = new Date("2026-10-24T15:00:00Z");
 test("módulos: solo existen los registrados", () => {
   assert.ok(isModuleKey("promotions"));
   assert.ok(!isModuleKey("toString") && !isModuleKey("x"));
-  assert.deepEqual(MODULE_KEYS, ["promotions"]);
+  assert.deepEqual([...MODULE_KEYS].sort(), ["guest_profile", "promotions"]);
 });
 
 test("valida la campaña: título, enlace https, botón con texto y fechas", () => {
@@ -101,4 +101,24 @@ test("sitios de las campañas activas: sin repetir, ignora pausadas, borradores 
     mk("paused", "https://pausada.com"), mk("draft", "https://borrador.com"), mk("active", ""),
     { status: "active", content: { title: "" } },
   ]), ["a.com", "b.com"]);
+});
+
+test("promoción con público por respuestas: solo la ve quien contestó eso, y gana a la general", () => {
+  const g = (answers: Record<string, string>) => ({ visitCount: 2, lastSeenBefore: new Date("2026-10-23T00:00:00Z"), answers });
+  const general = cand({ id: "general", segment: "all" });
+  const locales = cand({ id: "locales", segment: "all", audience: { q: "residence", in: ["resident"] } });
+  assert.equal(pickPromotion([general, locales], g({ residence: "resident" }), now)?.id, "locales");
+  assert.equal(pickPromotion([general, locales], g({ residence: "foreign" }), now)?.id, "general");
+  assert.equal(pickPromotion([general, locales], g({}), now)?.id, "general", "sin respuestas: la general");
+  assert.equal(pickPromotion([locales], g({ residence: "foreign" }), now), null, "sin general, un turista no recibe la de residentes");
+  assert.equal(pickPromotion([locales], { visitCount: 1, lastSeenBefore: null }, now), null, "sin respuestas guardadas");
+});
+
+test("el público de una campaña se valida al guardarla", () => {
+  assert.ok(parsePromotion({ ...base, audience: { q: "residence", in: ["resident"] } }).ok);
+  assert.ok(parsePromotion({ ...base, audience: null }).ok);
+  assert.ok(parsePromotion(base).ok, "sin público también vale");
+  assert.ok(!parsePromotion({ ...base, audience: { q: "residence", in: [] } }).ok, "al menos una respuesta");
+  assert.ok(!parsePromotion({ ...base, audience: { q: "residence", in: ["marciano"] } }).ok, "respuesta que no existe");
+  assert.ok(!parsePromotion({ ...base, audience: { q: "religion", in: ["x"] } }).ok, "pregunta fuera del catálogo");
 });

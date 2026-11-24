@@ -3,19 +3,23 @@
 import { useActionState } from "react";
 import { savePromotion, type PromoState } from "@/app/promotions-actions";
 import { SEGMENTS, SEGMENT_LABEL, type Segment } from "@/lib/promotions";
+import { QUESTIONS, QUESTION_IDS, isQuestionId, type Audience } from "@/lib/guest-questions";
+import { useState } from "react";
 
 export type PromoFormValues = {
   id?: string; name: string; segment: Segment; inactive_days: number;
   title: string; body: string; cta_label: string; cta_url: string; image: string | null;
   starts_at: string; ends_at: string; // «YYYY-MM-DDTHH:mm» en hora de Panamá
+  audience: Audience | null;
 };
 
 export const EMPTY: PromoFormValues = {
-  name: "", segment: "all", inactive_days: 30, title: "", body: "", cta_label: "", cta_url: "", image: null, starts_at: "", ends_at: "",
+  name: "", segment: "all", inactive_days: 30, title: "", body: "", cta_label: "", cta_url: "", image: null, starts_at: "", ends_at: "", audience: null,
 };
 
-export function PromotionForm({ v }: { v: PromoFormValues }) {
+export function PromotionForm({ v, profileModule = false }: { v: PromoFormValues; profileModule?: boolean }) {
   const [state, action, pending] = useActionState<PromoState, FormData>(savePromotion, null);
+  const [audQ, setAudQ] = useState<string>(v.audience?.q ?? "");
   return (
     <form action={action} className="card">
       <h2>{v.id ? `Editar «${v.name}»` : "Nueva campaña"}</h2>
@@ -31,6 +35,27 @@ export function PromotionForm({ v }: { v: PromoFormValues }) {
         </div>
         <div><label>Días de ausencia (solo «vuelven tras una ausencia»)</label><input name="inactive_days" type="number" min={7} max={365} defaultValue={v.inactive_days} /></div>
       </div>
+
+      {profileModule && (
+        <div style={{ marginTop: 12 }}>
+          <label>Solo para quienes respondieron… (opcional)</label>
+          <select name="aud_q" value={audQ} onChange={(e) => setAudQ(e.target.value)}>
+            <option value="">Sin filtro por respuestas</option>
+            {QUESTION_IDS.map((id) => <option key={id} value={id}>{QUESTIONS[id].short}: {QUESTIONS[id].label.es}</option>)}
+          </select>
+          {isQuestionId(audQ) && (
+            <div className="row" style={{ marginTop: 6 }}>
+              {QUESTIONS[audQ].options.map((o) => (
+                <label key={`${audQ}-${o.value}`} className="inline" style={{ margin: 0 }}>
+                  <input type="checkbox" name="aud_in" value={o.value} style={{ width: "auto" }}
+                    defaultChecked={v.audience?.q === audQ && v.audience.in.includes(o.value)} /> {o.es}
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="muted" style={{ margin: "4px 0 0" }}>Quien no contestó esa pregunta no ve la campaña. La campaña debe estar en una pregunta que el local haga en su portal.</p>
+        </div>
+      )}
 
       <h3 style={{ marginTop: 16 }}>Lo que ve el visitante</h3>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 12 }}>

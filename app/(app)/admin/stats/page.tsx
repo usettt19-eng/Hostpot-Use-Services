@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase";
 import { requireAdminTenant } from "@/lib/portal";
 import { RANGES, WEEKDAY_NAMES, buildStats, quick, type Summary } from "@/lib/stats";
 import { Columns, Kpi, nf } from "@/components/stats/charts";
+import { moduleEnabled } from "@/lib/tenant-modules";
+import { QUESTION_IDS, breakdown, cleanAnswers } from "@/lib/guest-questions";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +14,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const { range } = await searchParams;
   const key = range && RANGES[range] ? range : "30";
   const cfg = RANGES[key];
-  await requireAdminTenant();
+  const ctx = await requireAdminTenant();
   const supabase = await createClient();
   const now = new Date();
   // Para comparar con el periodo anterior se leen dos periodos (el rango anual: 12 meses + los 365 días previos).
@@ -24,6 +26,11 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
     supabase.from("guests").select("id, first_seen_at").limit(LIMIT),
   ]);
   const sessions = sess ?? [], guests = gs ?? [];
+  // Perfil de los visitantes (módulo «Preguntas al visitante»); si la migración 0018 falta, la consulta falla y no se muestra
+  const profiles = (await moduleEnabled(ctx.tenantId, "guest_profile"))
+    ? ((await supabase.from("guests").select("profile").limit(LIMIT)).data ?? []).map((r) => cleanAnswers((r as { profile?: unknown }).profile))
+    : null;
+  const breakdowns = profiles ? QUESTION_IDS.map((id) => breakdown(id, profiles)).filter((b) => b.answered > 0) : [];
   const truncated = sessions.length >= LIMIT || guests.length >= LIMIT;
 
   const st = buildStats(sessions, guests, now, cfg.days, cfg.gran);
@@ -94,6 +101,37 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
             cols={st.byWeekday.map((n, d) => ({ label: WEEKDAY_NAMES[d], tip: WEEKDAY_NAMES[d], a: n }))} />
         </div>
       </div>
+
+      {profiles && (
+        <div className="card">
+          <h2>Perfil de los visitantes</h2>
+          {breakdowns.length === 0 ? (
+            <p className="muted">Todavía nadie respondió las preguntas. Actívalas en <strong>Diseño y horarios</strong>.</p>
+          ) : (
+            <>
+              <p className="muted">Respuestas de todos los visitantes que contestaron (no solo del periodo elegido). La respuesta es opcional salvo que la pregunta sea obligatoria.</p>
+              <div className="grid2">
+                {breakdowns.map((b) => (
+                  <div key={b.id}>
+                    <h3>{b.short}</h3>
+                    <p className="muted">{nf.format(b.answered)} de {nf.format(b.total)} visitantes respondieron</p>
+                    {b.rows.map((r) => (
+                      <div key={r.value} style={{ margin: "6px 0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                          <span>{r.label}</span><span>{nf.format(r.count)} · {b.answered ? Math.round((r.count / b.answered) * 100) : 0}%</span>
+                        </div>
+                        <div style={{ background: "var(--line)", borderRadius: 4, height: 8 }}>
+                          <i style={{ display: "block", background: "var(--s1)", height: 8, borderRadius: 4, width: `${b.answered ? (r.count / b.answered) * 100 : 0}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <details className="card scroll">
         <summary>Ver como tabla</summary>

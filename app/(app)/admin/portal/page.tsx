@@ -3,6 +3,7 @@ import { defaultSettings } from "@/lib/portal-settings";
 import { Assets, EditorForm, PreviewFrame, PublishPanel, RestoreButton } from "./editor";
 import { ScheduleForm } from "./schedule";
 import { createAdminClient } from "@/lib/supabase";
+import { moduleEnabled } from "@/lib/tenant-modules";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function PortalPage() {
   const { draft, published, history } = await getPortalState(ctx.tenantId, ctx.tenantName);
   const settings = (draft ?? published)?.settings ?? defaultSettings(ctx.tenantName);
   const stamp = draft?.id ?? published?.id ?? "base";
+  const profileModule = await moduleEnabled(ctx.tenantId, "guest_profile"); // nunca en escuelas
   const when = (d: string | null) => (d ? new Date(d).toLocaleString("es") : "—");
 
   return (
@@ -25,7 +27,7 @@ export default async function PortalPage() {
         </p>
       </div>
       <PublishPanel hasDraft={!!draft} published={published?.version ?? null} />
-      <EditorForm key={`${stamp}-${JSON.stringify(settings).length}`} s={settings} />
+      <EditorForm key={`${stamp}-${JSON.stringify(settings).length}`} s={settings} profileModule={profileModule} />
       <Assets s={settings} />
       {ctx.type === "school" && <ScheduleCard tenantId={ctx.tenantId} />}
       <PreviewFrame version={`${stamp}-${JSON.stringify(settings).length}`} />

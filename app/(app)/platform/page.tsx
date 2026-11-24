@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase";
 import { setTenantModule, setTenantSuspended } from "@/app/platform-actions";
-import { MODULES, MODULE_KEYS } from "@/lib/modules";
+import { MODULES, MODULE_KEYS, moduleAppliesTo } from "@/lib/modules";
 import { requirePlatformAdmin } from "@/lib/platform-auth";
 import { summarizeTenants } from "@/lib/platform";
 import NewTenantForm from "./new-tenant-form";
@@ -59,6 +59,7 @@ export default async function PlatformPage() {
                 <td>
                   {MODULE_KEYS.map((k) => {
                     const on = modulesOf.get(x.id)?.has(k) ?? false;
+                    if (!moduleAppliesTo(k, x.type)) return <p key={k} className="muted" style={{ margin: "2px 0" }} title={MODULES[k].description}>{MODULES[k].label}: no aplica a este tipo</p>;
                     return (
                       <form key={k} action={setTenantModule} className="inline" title={MODULES[k].description}>
                         <input type="hidden" name="id" value={x.id} />

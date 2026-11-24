@@ -6,6 +6,7 @@ import {
   type PortalState,
 } from "@/app/portal-actions";
 import type { PortalSettings } from "@/lib/portal-settings";
+import { MAX_QUESTIONS, QUESTIONS, QUESTION_IDS } from "@/lib/guest-questions";
 import {
   TEMPLATES, TEMPLATE_LABEL, RADII, RADIUS_LABEL, FONTS, FONT_LABEL, LOCALES, METHODS, METHOD_LABEL,
   FIELD_MODES, FIELD_MODE_LABEL, contrastRatio, MIN_CONTRAST,
@@ -48,7 +49,7 @@ export function PreviewFrame({ version }: { version: string }) {
   );
 }
 
-export function EditorForm({ s }: { s: PortalSettings }) {
+export function EditorForm({ s, profileModule = false }: { s: PortalSettings; profileModule?: boolean }) {
   const [state, action, pending] = useActionState(saveDraft, null);
   const [pubState, pubAction, pubPending] = useActionState(saveAndPublish, null);
   const [colors, setColors] = useState(s.colors);
@@ -118,6 +119,29 @@ export function EditorForm({ s }: { s: PortalSettings }) {
         El visitante recibe un código por correo y debe escribirlo para conectarse: así los correos que reúnes son reales y podrás enviarles promociones sin
         riesgo de spam. Requiere que el correo de envío esté configurado en el servidor; si no, los visitantes no podrán conectarse. Pruébalo antes de publicar.
       </p>
+      {profileModule && (
+        <>
+          <h2 style={{ marginTop: 16 }}>Preguntas al visitante</h2>
+          <input type="hidden" name="questions_form" value="1" />
+          <p className="muted">
+            Hasta {MAX_QUESTIONS} preguntas de respuesta cerrada que se hacen al conectarse. Sirven para segmentar promociones y ver quién visita el local
+            (por ejemplo, residentes o turistas). Cada dato debe tener una finalidad y conviene mencionarlo en los términos. No se preguntan datos de menores.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12 }}>
+            {QUESTION_IDS.map((id) => (
+              <div key={id}>
+                <label>{QUESTIONS[id].label.es}</label>
+                <select name={`question_${id}`} defaultValue={s.questions.find((q) => q.id === id)?.mode ?? "off"}>
+                  <option value="off">No preguntar</option>
+                  <option value="optional">Opcional</option>
+                  <option value="required">Obligatoria</option>
+                </select>
+              </div>
+            ))}
+          </div>
+          <p className="muted">«¿Cuánto tiempo estarás?» solo se le hace a quien dice que no vive en la ciudad (si también preguntas la residencia).</p>
+        </>
+      )}
       <label>Duración de la sesión del invitado (minutos, 10 a 1440)</label>
       <input name="session_minutes" type="number" min={10} max={1440} defaultValue={s.session_minutes} required />
       <label>Después de conectar, ir a (https://…, opcional)</label>

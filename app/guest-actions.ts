@@ -20,11 +20,23 @@ import { pickPromotion, promoPageUrl, type PromoCandidate } from "@/lib/promotio
 import { siteOrigin } from "@/lib/site-url";
 import { sealPromoTicket } from "@/lib/promo-token";
 import { mailConfigured, sendMail } from "@/lib/mail";
+import { QUESTION_IDS, cleanAnswers, type Answers } from "@/lib/guest-questions";
 import { OTP_TTL_MS, canSend, checkCode, generateCode, otpEmail, type OtpRecord } from "@/lib/otp";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean; needCode?: string } | null;
 
 const s = (fd: FormData, k: string, max = 300) => String(fd.get(k) ?? "").slice(0, max);
+
+/** Respuestas guardadas del visitante. Si la migración 0018 aún no está aplicada, la consulta falla y se toma como «ninguna». */
+async function readProfile(guestId: string): Promise<Answers> {
+  const { data, error } = await createAdminClient().from("guests").select("profile").eq("id", guestId).maybeSingle();
+  return error ? {} : cleanAnswers(data?.profile);
+}
+
+async function writeProfile(guestId: string, profile: Answers) {
+  const { error } = await createAdminClient().from("guests").update({ profile }).eq("id", guestId);
+  if (error) console.error("guests.profile:", error.message);
+}
 
 function makeDb(): FlowDb {
   const db = createAdminClient();
@@ -46,7 +58,10 @@ function makeDb(): FlowDb {
           full_name: g.fullName, phone_enc: g.phoneEnc,
           ...(g.emailVerified ? { email_verified_at: new Date().toISOString() } : {}),
         }).select("id").single();
-        if (ins.data) return { id: ins.data.id, visitCount: 1, lastSeenBefore: null };
+        if (ins.data) {
+          if (g.profile) await writeProfile(ins.data.id, g.profile);
+          return { id: ins.data.id, visitCount: 1, lastSeenBefore: null, profile: g.profile ?? {} };
+        }
         ({ data } = await find()); // otra petición lo creó a la vez
         if (!data) throw new Error("No se pudo guardar al invitado");
       }
@@ -55,7 +70,10 @@ function makeDb(): FlowDb {
         ...(g.fullName ? { full_name: g.fullName } : {}), ...(g.phoneEnc ? { phone_enc: g.phoneEnc } : {}),
         ...(g.emailVerified ? { email_verified_at: new Date().toISOString() } : {}),
       }).eq("id", data.id);
-      return { id: data.id, visitCount: data.visit_count + 1, lastSeenBefore: data.last_seen_at ? new Date(data.last_seen_at) : null };
+      // Las respuestas nuevas se suman a las que ya había (una pregunta que el local deja de hacer no borra lo anterior)
+      const profile: Answers = g.profile ? { ...(await readProfile(data.id)), ...g.profile } : await readProfile(data.id);
+      if (g.profile) await writeProfile(data.id, profile);
+      return { id: data.id, visitCount: data.visit_count + 1, lastSeenBefore: data.last_seen_at ? new Date(data.last_seen_at) : null, profile };
     },
     async insertConsents(rows) {
       const { error } = await db.from("guest_consents").insert(rows);
@@ -150,6 +168,8 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
   const locale = pickLocale(s(fd, "locale", 2), null, settings.default_locale);
 
   const cfg = await getRouterConfig(tenant.id);
+  // Preguntas al visitante: solo con el módulo activo (que nunca aplica a escuelas)
+  const questions = (await moduleEnabled(tenant.id, "guest_profile")) ? settings.questions : [];
 
   // Plan de red del invitado: el perfil del rol de menor privilegio del tipo de establecimiento
   const role = DEFAULT_ROLE[tenant.type as EstablishmentType] ?? "student";
@@ -188,10 +208,12 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
       // Módulo Promociones (solo si el dueño lo activó para este establecimiento)
       promo: async (tenantId, guest, ticket) => {
         if (!(await moduleEnabled(tenantId, "promotions"))) return null;
-        const { data } = await createAdminClient().from("promotions")
-          .select("id, status, segment, inactive_days, starts_at, ends_at, created_at, content")
-          .eq("tenant_id", tenantId).eq("status", "active");
-        const picked = pickPromotion((data ?? []) as PromoCandidate[], guest, new Date());
+        // `audience` existe desde la migración 0018: si falta, se leen sin ella
+        const pick = (cols: string) => createAdminClient().from("promotions").select(cols).eq("tenant_id", tenantId).eq("status", "active");
+        const base = "id, status, segment, inactive_days, starts_at, ends_at, created_at, content";
+        let { data, error } = await pick(`${base}, audience`);
+        if (error) ({ data } = await pick(base));
+        const picked = pickPromotion((data ?? []) as unknown as PromoCandidate[], guest, new Date());
         if (!picked) return null;
         const token = sealPromoTicket({ tenantId, promoId: picked.id, ...ticket }, { encrypt: encryptSecret, decrypt: decryptSecret }, Date.now());
         return promoPageUrl(siteOrigin(h), tenant.slug, picked.id, token);
@@ -199,6 +221,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
     },
     {
       schedule,
+      questions,
       tenantId: tenant.id, settings, termsVersion, locale,
       termsText: settings.terms[locale].trim() || settings.terms[settings.default_locale].trim(),
       plan: { name: plan.name, downloadKbps: plan.download_kbps, uploadKbps: plan.upload_kbps },
@@ -206,6 +229,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
         email: s(fd, "email", 300), name: s(fd, "name", 200), phone: s(fd, "phone", 50),
         acceptTerms: fd.get("accept_terms") === "on", acceptMarketing: fd.get("accept_marketing") === "on",
         code: s(fd, "code", 20), resend: fd.get("resend") === "1",
+        answers: Object.fromEntries(QUESTION_IDS.map((id) => [id, s(fd, `q_${id}`, 20)])),
       },
       hs: { mac: s(fd, "hs_mac", 40), ip: s(fd, "hs_ip", 40), login: s(fd, "hs_login", 300), orig: s(fd, "hs_orig", 600) },
       userAgent: h.get("user-agent") ?? "",

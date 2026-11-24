@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { PortalSettings } from "@/lib/portal-settings";
 import { FONT_STACK, RADIUS_PX, readableOn } from "@/lib/portal-theme";
 import GuestForm from "./GuestForm";
+import { questionUi, type QuestionConfig } from "@/lib/guest-questions";
 import StaffLogin from "./StaffLogin";
 
 type Hs = { mac: string; ip: string; login: string; orig: string; err?: string };
@@ -17,6 +18,7 @@ type Props = {
   assetBase: string; // ej. /w/mi-local/assets
   langBase: string; // ej. /w/mi-local
   banner?: string;
+  questions?: QuestionConfig[]; // preguntas al visitante del local (solo con el módulo activo)
 };
 
 const T = {
@@ -64,6 +66,10 @@ const CSS = `
 .pv-err{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#fee2e2;color:#7f1d1d;font-size:13px}
 .pv-ok{margin:12px 0 0;padding:8px 10px;border-radius:calc(var(--radius)/2);background:#dcfce7;color:#14532d;font-size:13px}
 .pv-btn:disabled{opacity:.6;cursor:default}
+.pv-q{border:0;padding:0;margin:12px 0 0}
+.pv-q legend{font-size:13px;padding:0;margin-bottom:4px}
+.pv-opt{display:flex;gap:8px;align-items:center;font-size:14px;margin:6px 0}
+.pv .pv-opt input[type=radio]{width:auto;padding:0;margin:0;flex:none}
 .pv-link{background:none;border:0;padding:0;font:inherit;color:var(--text);text-decoration:underline;cursor:pointer}
 .pv-link:disabled{opacity:.6;cursor:default}
 .pv-staff{margin-top:16px;font-size:13px;border-top:1px solid rgba(127,127,127,.3);padding-top:12px}
@@ -80,7 +86,7 @@ const CSS = `
 @media(min-width:800px){.pv-split{grid-template-columns:1fr 1fr}.pv-split .pv-side{min-height:calc(100vh - 30px)}}
 `;
 
-export default function PortalView({ slug, staffLoginUrl, staffDst = "", hs = { mac: "", ip: "", login: "", orig: "" }, settings: s, locale, termsVersion, assetBase, langBase, banner }: Props) {
+export default function PortalView({ slug, staffLoginUrl, staffDst = "", hs = { mac: "", ip: "", login: "", orig: "" }, settings: s, locale, termsVersion, assetBase, langBase, banner, questions = [] }: Props) {
   const t = T[locale];
   const tx = s.texts[locale];
   const terms = s.terms[locale].trim() || s.terms[s.default_locale].trim();
@@ -113,7 +119,7 @@ export default function PortalView({ slug, staffLoginUrl, staffDst = "", hs = { 
       {hs.err && <p className="pv-err" role="alert">{hs.err.slice(0, 200)}</p>}
       <GuestForm
         slug={slug} locale={locale} fields={s.fields} methods={s.methods} button={tx.button}
-        termsVersion={termsVersion} terms={terms} hs={{ mac: hs.mac, ip: hs.ip, login: hs.login, orig: hs.orig }}
+        termsVersion={termsVersion} terms={terms} questions={questionUi(questions, locale)} hs={{ mac: hs.mac, ip: hs.ip, login: hs.login, orig: hs.orig }}
         t={{ name: t.name, email: t.email, phone: t.phone, voucher: t.voucher, accept: t.accept, terms: t.terms,
              marketing: t.marketing, version: t.version, noTerms: t.noTerms, connecting: t.connecting, previewDone: t.previewDone,
              code: t.code, codeSent: t.codeSent, resend: t.resend, changeEmail: t.changeEmail, verify: t.verify }}

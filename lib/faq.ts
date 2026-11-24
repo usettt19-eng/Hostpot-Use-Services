@@ -199,6 +199,26 @@ export const FAQ: FaqGroup[] = [
     ],
   },
   {
+    id: "preguntas", title: "Preguntas al visitante (módulo opcional)", items: [
+      { q: "¿Para qué sirven las preguntas al visitante y por qué no veo la opción?", a: [
+        "Al conectarse, el visitante puede responder hasta 3 preguntas de respuesta cerrada que tú eliges. Sirven para conocer a quién visita el local y para dirigir promociones: por ejemplo, ofrecer una promoción solo a quienes **viven en la ciudad** y no a turistas que están pocos días.",
+        "Es un módulo opcional que activa el administrador de la plataforma, y **no aplica a escuelas** (hay menores de edad). Si no ves la sección **Preguntas al visitante** en **Diseño y horarios**, pídele que lo active.",
+      ] },
+      { q: "¿Qué preguntas puedo hacer y cómo las activo?", a: [
+        "Hay cinco preguntas prediseñadas: **¿Eres de aquí?** (vivo en la ciudad, vivo en otra ciudad del país, estoy de visita desde otro país), **¿Cuánto tiempo estarás en la ciudad?**, **motivo de la visita**, **cómo nos conoció** y **rango de edad** (desde 18 años). No se pueden escribir preguntas propias: así las respuestas son comparables y no se piden datos delicados.",
+        "En **Diseño y horarios**, sección **Preguntas al visitante**, marca cada una como **Opcional** u **Obligatoria**, o **No preguntar**, y pulsa **Guardar y publicar**. Máximo 3. «¿Cuánto tiempo estarás?» solo se le pregunta a quien dice que no vive en la ciudad.",
+        "Pregunta solo lo que de verdad usarás y menciónalo en tus términos: cada dato personal necesita una finalidad. Marcar una pregunta como obligatoria hace más lenta la conexión; lo normal es dejarlas opcionales.",
+      ] },
+      { q: "¿Cómo envío una promoción solo a residentes o solo a turistas?", a: [
+        "En **Promociones**, al crear o editar la campaña, usa **Solo para quienes respondieron…**: elige la pregunta (por ejemplo «¿Eres de aquí?») y marca las respuestas que quieres alcanzar. Quien no contestó esa pregunta **no** ve esa campaña, y si hay otra campaña general activa, verá esa.",
+        "Una campaña con público por respuestas se muestra antes que una general. Las respuestas se guardan por visitante, así que un visitante que ya contestó no vuelve a ver las campañas de otro público.",
+      ] },
+      { q: "¿Dónde veo las respuestas?", a: [
+        "En **Visitantes**, la columna **Respuestas** y el archivo CSV; y en **Estadísticas**, la tarjeta **Perfil de los visitantes**, con cuántos eligieron cada opción. Si eliminas a un visitante, también se borran sus respuestas. Son respuestas que da la propia persona: nadie las verifica.",
+      ] },
+    ],
+  },
+  {
     id: "promociones", title: "Promociones (módulo opcional)", items: [
       { q: "¿Qué son las promociones y por qué no veo «Promociones» en el menú?", a: [
         "Una promoción es lo que el visitante ve cuando pulsa «Conectarme» en tu portal y justo antes de recibir internet: una imagen, un mensaje y, si quieres, un botón con un enlace (tu menú, tu página, una oferta). Se muestra antes para que el teléfono no cierre la ventana del portal y se vea siempre.",

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   TEMPLATES, RADII, FONTS, LOCALES, METHODS, FIELD_MODES, contrastRatio, MIN_CONTRAST,
 } from "./portal-theme.ts";
+import { MAX_QUESTIONS, QUESTION_IDS, QUESTION_MODES } from "./guest-questions.ts";
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color inválido (use #RRGGBB)");
 
@@ -40,6 +41,9 @@ export const portalSettingsSchema = z.object({
   session_minutes: z.number().int().min(10, "Mínimo 10 minutos").max(1440, "Máximo 24 horas").default(120),
   /** Pide un código enviado al correo antes de conectar (requiere el correo configurado en el servidor). */
   verify_email: z.boolean().default(false),
+  /** Preguntas opcionales al visitante (módulo «Preguntas al visitante»; catálogo fijo, máximo 3, sin repetir). */
+  questions: z.array(z.object({ id: z.enum(QUESTION_IDS), mode: z.enum(QUESTION_MODES) })).max(MAX_QUESTIONS, `Máximo ${MAX_QUESTIONS} preguntas`)
+    .refine((q) => new Set(q.map((x) => x.id)).size === q.length, "Preguntas repetidas").default([]),
   redirect_url: httpsUrl,
   privacy_url: httpsUrl,
   terms: z.object({ es: z.string().max(8000), en: z.string().max(8000) }),
@@ -64,6 +68,7 @@ export function defaultSettings(name: string): PortalSettings {
     fields: { name: "optional", email: "required", phone: "off" },
     session_minutes: 120,
     verify_email: false,
+    questions: [],
     redirect_url: "",
     privacy_url: "",
     terms: { es: "", en: "" },

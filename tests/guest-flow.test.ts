@@ -286,3 +286,46 @@ test("Verificación del correo: apagada, no se pide nada y todo sigue igual; un 
   auth.deps.otp = { send: async () => { throw new Error("no debía enviar"); }, verify: async () => { throw new Error("no debía verificar"); } };
   assert.ok((await connectGuest(auth.deps, auth.input)).ok);
 });
+
+// ---- Preguntas al visitante ----
+
+test("Preguntas: una obligatoria sin contestar no conecta ni guarda nada", async () => {
+  const s = setup();
+  const r = await connectGuest(s.deps, { ...s.input, locale: "es", questions: [{ id: "residence", mode: "required" }] });
+  assert.ok(!r.ok && /¿Eres de aquí\?/.test(r.error));
+  assert.ok(!s.calls.includes("upsertGuest") && !s.calls.includes("createGuestUser") && s.consents.length === 0);
+});
+
+test("Preguntas: las respuestas válidas se guardan con el visitante y viajan a la elección de la campaña", async () => {
+  const s = setup();
+  let saved: any, seen: any;
+  const orig = s.deps.db.upsertGuest;
+  s.deps.db.upsertGuest = async (t, g) => { saved = g.profile; return { ...(await orig(t, g)), profile: { purpose: "tourism", ...g.profile } }; };
+  s.deps.promo = async (_t, guest) => { seen = guest.answers; return null; };
+  const r = await connectGuest(s.deps, {
+    ...s.input, questions: [{ id: "residence", mode: "required" }, { id: "stay", mode: "optional" }],
+    form: { ...s.input.form, answers: { residence: "foreign", stay: "week", purpose: "work", evil: "x" } },
+  });
+  assert.ok(r.ok && "redirect" in r);
+  assert.deepEqual(saved, { residence: "foreign", stay: "week" }, "solo preguntas del local y opciones válidas");
+  assert.deepEqual(seen, { purpose: "tourism", residence: "foreign", stay: "week" }, "las nuevas se suman a las guardadas");
+});
+
+test("Preguntas: el local sin preguntas (o sin el módulo) no guarda respuestas aunque lleguen en el formulario", async () => {
+  for (const questions of [undefined, []]) {
+    const s = setup();
+    let saved: any = "no llamado";
+    const orig = s.deps.db.upsertGuest;
+    s.deps.db.upsertGuest = async (t, g) => { saved = g.profile; return orig(t, g); };
+    const r = await connectGuest(s.deps, { ...s.input, questions, form: { ...s.input.form, answers: { residence: "foreign" } } });
+    assert.ok(r.ok && "redirect" in r);
+    assert.equal(saved, undefined);
+  }
+});
+
+test("Preguntas: con la verificación del correo, las respuestas no se guardan hasta verificar", async () => {
+  const s = withOtp();
+  const r = await connectGuest(s.deps, { ...s.input, questions: [{ id: "residence", mode: "optional" }], form: { ...s.input.form, answers: { residence: "resident" } } });
+  assert.ok(r.ok && "needCode" in r);
+  assert.ok(!s.calls.includes("upsertGuest"));
+});

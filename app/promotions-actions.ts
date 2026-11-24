@@ -8,6 +8,8 @@ import { requireModule } from "@/lib/tenant-modules";
 import { IMAGE_MIME, MAX_IMAGE_BYTES, sniffImage } from "@/lib/portal-settings";
 import { STATUSES, panamaLocalToIso, parsePromotion } from "@/lib/promotions";
 import { syncPromotionHosts } from "@/lib/promotions-db";
+import { moduleEnabled } from "@/lib/tenant-modules";
+import { isQuestionId } from "@/lib/guest-questions";
 
 export type PromoState = { error?: string; ok?: string; id?: string } | null;
 
@@ -30,6 +32,8 @@ export async function savePromotion(_: PromoState, fd: FormData): Promise<PromoS
   const ends = panamaLocalToIso(str(fd, "ends_at"));
   if (starts === undefined || ends === undefined) return { error: "Las fechas no son válidas" };
 
+  const audienceTouched = await moduleEnabled(ctx.tenantId, "guest_profile");
+  const audienceQ = audienceTouched ? str(fd, "aud_q") : "";
   let image: string | null = fd.get("remove_image") === "on" ? null : (str(fd, "image") || null);
   const file = fd.get("file");
   if (file instanceof File && file.size > 0) {
@@ -50,15 +54,21 @@ export async function savePromotion(_: PromoState, fd: FormData): Promise<PromoS
   const parsed = parsePromotion({
     name: str(fd, "name"), segment: str(fd, "segment"), inactive_days: Number(str(fd, "inactive_days") || 30),
     content: { title: str(fd, "title"), body: str(fd, "body"), cta_label: str(fd, "cta_label"), cta_url: str(fd, "cta_url"), image },
+    audience: audienceQ && isQuestionId(audienceQ) ? { q: audienceQ, in: fd.getAll("aud_in").map(String) } : null,
     starts_at: starts, ends_at: ends,
   });
   if (!parsed.ok) return { error: parsed.error };
-  const row = { ...parsed.data, updated_at: new Date().toISOString() };
+  // El público por respuestas solo se toca si el módulo «Preguntas al visitante» está activo (si no, el formulario ni lo muestra)
+  const { audience, ...rest } = parsed.data;
+  const row = { ...rest, ...(audienceTouched ? { audience } : {}), updated_at: new Date().toISOString() };
 
   const db = createAdminClient();
   if (id) {
     const { data, error } = await db.from("promotions").update(row).eq("id", id).eq("tenant_id", ctx.tenantId).select("id").maybeSingle();
-    if (error || !data) return { error: "No se pudo guardar la campaña" };
+    if (error || !data) {
+      console.error("savePromotion update:", error?.message);
+      return { error: audienceTouched ? "No se pudo guardar la campaña. ¿Está aplicada la migración 0018 en Supabase?" : "No se pudo guardar la campaña" };
+    }
     await syncPromotionHosts(ctx.tenantId);
     revalidatePath("/admin/promotions");
     return { ok: "Cambios guardados", id };

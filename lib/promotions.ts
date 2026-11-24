@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { QUESTIONS, QUESTION_IDS, audienceMatches, parseAudience, type Answers } from "./guest-questions.ts";
 
 // Módulo «Promociones». Función pura: validación, segmentos y elección de la campaña que ve cada visitante.
 // El contenido nunca lleva HTML, CSS ni JS libres: solo texto, una imagen verificada y un enlace https://.
@@ -43,6 +44,9 @@ export const promotionSchema = z.object({
   segment: z.enum(SEGMENTS),
   inactive_days: z.number().int().min(7, "Mínimo 7 días").max(365, "Máximo 365 días"),
   content: contentSchema,
+  /** Público según las respuestas del visitante (módulo «Preguntas al visitante»); null = para todos. */
+  audience: z.object({ q: z.enum(QUESTION_IDS), in: z.array(z.string()).min(1, "Elige al menos una respuesta para el público") }).nullable()
+    .refine((a) => !a || a.in.every((v) => QUESTIONS[a.q].options.some((o) => o.value === v)), "Respuesta no válida para ese público").default(null),
   starts_at: z.string().datetime().nullable(),
   ends_at: z.string().datetime().nullable(),
 }).refine((p) => !p.starts_at || !p.ends_at || Date.parse(p.ends_at) > Date.parse(p.starts_at), {
@@ -87,7 +91,7 @@ export function isoToPanamaLocal(iso: string | null): string {
 
 // ---- Qué campaña ve cada visitante ----
 
-export type GuestHistory = { visitCount: number; lastSeenBefore: Date | null };
+export type GuestHistory = { visitCount: number; lastSeenBefore: Date | null; answers?: Answers };
 
 /** ¿El visitante entra en este segmento? `visitCount` ya incluye la visita actual. */
 export function inSegment(segment: Segment, g: GuestHistory, inactiveDays: number, now: Date): boolean {
@@ -106,6 +110,7 @@ export function inSegment(segment: Segment, g: GuestHistory, inactiveDays: numbe
 export type PromoCandidate = {
   id: string; status: string; segment: Segment; inactive_days: number;
   starts_at: string | null; ends_at: string | null; created_at: string; content: unknown;
+  audience?: unknown;
 };
 
 /** Más específica primero: quien vuelve tras una ausencia ve esa campaña antes que la de «recurrentes». */
@@ -118,8 +123,11 @@ export function pickPromotion<T extends PromoCandidate>(list: T[], g: GuestHisto
     p.status === "active" &&
     (!p.starts_at || Date.parse(p.starts_at) <= t) && (!p.ends_at || Date.parse(p.ends_at) > t) &&
     parseContent(p.content) !== null &&
-    inSegment(p.segment, g, p.inactive_days, now));
-  ok.sort((a, b) => PRIORITY[b.segment] - PRIORITY[a.segment] || Date.parse(b.created_at) - Date.parse(a.created_at));
+    inSegment(p.segment, g, p.inactive_days, now) &&
+    audienceMatches(parseAudience(p.audience), g.answers));
+  // Una campaña con público por respuestas es más específica que una general
+  const rank = (p: PromoCandidate) => PRIORITY[p.segment] * 2 + (parseAudience(p.audience) ? 1 : 0);
+  ok.sort((a, b) => rank(b) - rank(a) || Date.parse(b.created_at) - Date.parse(a.created_at));
   return ok[0] ?? null;
 }
 

@@ -4,6 +4,7 @@ import PortalView from "@/components/portal/PortalView";
 import { getPublishedPortal, getTenantBySlug } from "@/lib/portal";
 import { pickLocale } from "@/lib/portal-settings";
 import { parseLoginUrl, sanitizeOrig } from "@/lib/guest-utils";
+import { moduleEnabled } from "@/lib/tenant-modules";
 
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
@@ -18,10 +19,11 @@ export default async function GuestPortal({
   if (!tenant) notFound();
   const { settings, termsVersion } = await getPublishedPortal(tenant.id, tenant.name);
   const locale = pickLocale(lang, (await headers()).get("accept-language"), settings.default_locale);
+  const questions = (await moduleEnabled(tenant.id, "guest_profile")) ? settings.questions : []; // nunca en escuelas
   return (
     <PortalView
       staffLoginUrl={parseLoginUrl(sp.login ?? "") ?? undefined} staffDst={settings.redirect_url || sanitizeOrig(sp.orig ?? "")}
-      slug={tenant.slug} settings={settings} locale={locale} termsVersion={termsVersion}
+      questions={questions} slug={tenant.slug} settings={settings} locale={locale} termsVersion={termsVersion}
       hs={{ mac: sp.mac ?? "", ip: sp.ip ?? "", login: sp.login ?? "", orig: sp.orig ?? "", err: sp.err }}
       assetBase={`/w/${tenant.slug}/assets`} langBase={`/w/${tenant.slug}`}
     />

@@ -9,12 +9,15 @@ import {
 } from "@/lib/portal-settings";
 import { FIELD_MODES, METHODS, type LOCALES } from "@/lib/portal-theme";
 import { parseHHMM, validateWindows } from "@/lib/schedule";
+import { QUESTION_IDS } from "@/lib/guest-questions";
+import { moduleEnabled } from "@/lib/tenant-modules";
 
 export type PortalState = { error?: string; ok?: string; warnings?: string[] } | null;
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "");
 
-function settingsFromForm(fd: FormData, base: PortalSettings): unknown {
+/** `questionsAllowed`: el módulo «Preguntas al visitante» está activo y aplica a este tipo de local (nunca una escuela). */
+function settingsFromForm(fd: FormData, base: PortalSettings, questionsAllowed: boolean): unknown {
   const loc = (l: (typeof LOCALES)[number]) => ({
     title: str(fd, `${l}_title`), subtitle: str(fd, `${l}_subtitle`),
     button: str(fd, `${l}_button`), footer: str(fd, `${l}_footer`),
@@ -35,6 +38,13 @@ function settingsFromForm(fd: FormData, base: PortalSettings): unknown {
     fields: { name: mode("field_name"), email: mode("field_email"), phone: mode("field_phone") },
     session_minutes: Number(str(fd, "session_minutes") || 120),
     verify_email: fd.get("verify_email") === "on",
+    // Sin el bloque de preguntas en el formulario (módulo apagado), se conserva lo que ya había
+    questions: questionsAllowed && fd.get("questions_form") === "1"
+      ? QUESTION_IDS.flatMap((id) => {
+          const m = str(fd, `question_${id}`);
+          return m === "optional" || m === "required" ? [{ id, mode: m }] : [];
+        })
+      : base.questions,
     redirect_url: str(fd, "redirect_url").trim(),
     privacy_url: str(fd, "privacy_url").trim(),
     terms: { es: str(fd, "terms_es"), en: str(fd, "terms_en") },
@@ -68,7 +78,7 @@ async function baseSettings(tenantId: string, tenantName: string) {
 export async function saveDraft(_: PortalState, fd: FormData): Promise<PortalState> {
   const ctx = await requireAdminTenant();
   const base = await baseSettings(ctx.tenantId, ctx.tenantName);
-  const parsed = parseSettings(settingsFromForm(fd, base));
+  const parsed = parseSettings(settingsFromForm(fd, base, await moduleEnabled(ctx.tenantId, "guest_profile")));
   if (!parsed.ok) return { error: parsed.errors.join(" · ") };
   const error = await writeDraft(ctx.tenantId, ctx.userId, parsed.data);
   if (error) {
@@ -83,7 +93,7 @@ export async function saveDraft(_: PortalState, fd: FormData): Promise<PortalSta
 export async function saveAndPublish(_: PortalState, fd: FormData): Promise<PortalState> {
   const ctx = await requireAdminTenant();
   const base = await baseSettings(ctx.tenantId, ctx.tenantName);
-  const parsed = parseSettings(settingsFromForm(fd, base));
+  const parsed = parseSettings(settingsFromForm(fd, base, await moduleEnabled(ctx.tenantId, "guest_profile")));
   if (!parsed.ok) return { error: parsed.errors.join(" · ") };
   const problems = publishProblems(parsed.data);
   if (problems.length) return { error: `No se publicó: ${problems.join(" · ")}` };

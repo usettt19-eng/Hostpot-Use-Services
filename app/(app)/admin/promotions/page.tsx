@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase";
 import { requireAdminTenant } from "@/lib/portal";
-import { requireModule } from "@/lib/tenant-modules";
+import { moduleEnabled, requireModule } from "@/lib/tenant-modules";
+import { QUESTIONS, answerLabel, parseAudience } from "@/lib/guest-questions";
 import { SEGMENT_LABEL, STATUS_LABEL, ctrText, isoToPanamaLocal, parseContent, type Segment } from "@/lib/promotions";
 import { deletePromotion, setPromotionStatus } from "@/app/promotions-actions";
 import PromoCard from "@/components/portal/PromoCard";
@@ -12,7 +13,7 @@ const EVENT_LIMIT = 100_000;
 
 type Row = {
   id: string; name: string; status: "draft" | "active" | "paused"; segment: Segment; inactive_days: number;
-  content: unknown; starts_at: string | null; ends_at: string | null; created_at: string;
+  content: unknown; starts_at: string | null; ends_at: string | null; created_at: string; audience?: unknown;
 };
 
 const fmt = (iso: string | null) => iso ? new Date(iso).toLocaleString("es-PA", { timeZone: "America/Panama", dateStyle: "short", timeStyle: "short" }) : "—";
@@ -22,12 +23,19 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
   await requireModule(ctx.tenantId, "promotions");
   const { edit } = await searchParams;
   const db = createAdminClient();
+  const profileModule = await moduleEnabled(ctx.tenantId, "guest_profile");
+  // `audience` existe desde la migración 0018: si falta, se lee sin ella
+  const readList = async () => {
+    const q = (cols: string) => db.from("promotions").select(cols).eq("tenant_id", ctx.tenantId).order("created_at", { ascending: false });
+    const base = "id, name, status, segment, inactive_days, content, starts_at, ends_at, created_at";
+    const first = await q(`${base}, audience`);
+    return first.error ? q(base) : first;
+  };
   const [list, ev] = await Promise.all([
-    db.from("promotions").select("id, name, status, segment, inactive_days, content, starts_at, ends_at, created_at")
-      .eq("tenant_id", ctx.tenantId).order("created_at", { ascending: false }),
+    readList(),
     db.from("promotion_events").select("promotion_id, kind").eq("tenant_id", ctx.tenantId).limit(EVENT_LIMIT),
   ]);
-  const rows = (list.data ?? []) as Row[];
+  const rows = (list.data ?? []) as unknown as Row[];
   const stats = new Map<string, { imp: number; clk: number }>();
   for (const e of ev.data ?? []) {
     const s = stats.get(e.promotion_id) ?? { imp: 0, clk: 0 };
@@ -41,7 +49,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
   const values: PromoFormValues = editing && ec
     ? { id: editing.id, name: editing.name, segment: editing.segment, inactive_days: editing.inactive_days,
         title: ec.title, body: ec.body, cta_label: ec.cta_label, cta_url: ec.cta_url, image: ec.image,
-        starts_at: isoToPanamaLocal(editing.starts_at), ends_at: isoToPanamaLocal(editing.ends_at) }
+        starts_at: isoToPanamaLocal(editing.starts_at), ends_at: isoToPanamaLocal(editing.ends_at), audience: parseAudience(editing.audience) }
     : EMPTY;
   const base = editing ? `/w/${ctx.slug}/promo/${editing.id}` : "";
 
@@ -56,7 +64,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
         {truncated && <p className="err">Hay muchos eventos: las cifras pueden estar incompletas.</p>}
       </div>
 
-      <PromotionForm key={editing?.id ?? "nueva"} v={values} />
+      <PromotionForm key={editing?.id ?? "nueva"} v={values} profileModule={profileModule} />
       {editing && ec && (
         <div className="card">
           <h2>Vista previa</h2>
@@ -77,7 +85,13 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
               return (
                 <tr key={r.id}>
                   <td><strong>{r.name}</strong></td>
-                  <td>{SEGMENT_LABEL[r.segment]}{r.segment === "inactive" ? ` (${r.inactive_days} días)` : ""}</td>
+                  <td>
+                    {SEGMENT_LABEL[r.segment]}{r.segment === "inactive" ? ` (${r.inactive_days} días)` : ""}
+                    {(() => {
+                      const a = parseAudience(r.audience);
+                      return a ? <><br /><span className="muted">{QUESTIONS[a.q].short}: {a.in.map((v) => answerLabel(a.q, v)).join(", ")}</span></> : null;
+                    })()}
+                  </td>
                   <td>{fmt(r.starts_at)} → {fmt(r.ends_at)}</td>
                   <td><span className={`badge ${r.status === "active" ? "active" : r.status === "paused" ? "pending" : ""}`}>{STATUS_LABEL[r.status]}</span></td>
                   <td>{s.imp}</td><td>{s.clk}</td><td>{ctrText(s.imp, s.clk)}</td>

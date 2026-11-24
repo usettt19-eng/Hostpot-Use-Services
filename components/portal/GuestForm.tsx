@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { guestConnect } from "@/app/guest-actions";
 import type { PortalSettings } from "@/lib/portal-settings";
+import type { QuestionUi } from "@/lib/guest-questions";
 
 export type GuestLabels = {
   name: string; email: string; phone: string; voucher: string; accept: string; terms: string; marketing: string;
@@ -20,9 +21,10 @@ type Props = {
   terms: string;
   hs: { mac: string; ip: string; login: string; orig: string };
   t: GuestLabels;
+  questions?: QuestionUi[];
 };
 
-export default function GuestForm({ slug, locale, fields, methods, button, termsVersion, terms, hs, t }: Props) {
+export default function GuestForm({ slug, locale, fields, methods, button, termsVersion, terms, hs, t, questions = [] }: Props) {
   const [state, action, pending] = useActionState(guestConnect, null);
   // Campos controlados: React 19 vacía los formularios tras cada acción, y el visitante no debe volver a escribir sus datos
   // al pasar a la pantalla del código ni si hay un error.
@@ -30,6 +32,7 @@ export default function GuestForm({ slug, locale, fields, methods, button, terms
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptMarketing, setAcceptMarketing] = useState(false);
   const [code, setCode] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [step, setStep] = useState<1 | 2>(1);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV((o) => ({ ...o, [k]: e.target.value }));
 
@@ -42,6 +45,9 @@ export default function GuestForm({ slug, locale, fields, methods, button, terms
     if (state?.needCode) { setStep(2); setCode(""); }
   }, [state]);
 
+  // La estancia solo se pregunta a quien no vive en la ciudad (si también se pregunta la residencia)
+  const asksResidence = questions.some((q) => q.id === "residence");
+  const visibleQuestions = questions.filter((q) => q.id !== "stay" || !asksResidence || answers.residence !== "resident");
   const done = !!state?.redirect;
   const step2 = step === 2 && !!state?.needCode;
   return (
@@ -60,6 +66,7 @@ export default function GuestForm({ slug, locale, fields, methods, button, terms
           <input type="hidden" name="email" value={v.email} />
           <input type="hidden" name="phone" value={v.phone} />
           <input type="hidden" name="voucher" value={v.voucher} />
+          {visibleQuestions.map((q) => answers[q.id] && <input key={q.id} type="hidden" name={`q_${q.id}`} value={answers[q.id]} />)}
           {acceptTerms && <input type="hidden" name="accept_terms" value="on" />}
           {acceptMarketing && <input type="hidden" name="accept_marketing" value="on" />}
           <p className="pv-ok">{t.codeSent.replace("{email}", state?.needCode ?? "")}</p>
@@ -88,6 +95,17 @@ export default function GuestForm({ slug, locale, fields, methods, button, terms
           {methods.includes("voucher") && (
             <><label>{t.voucher}</label><input type="text" name="voucher" value={v.voucher} onChange={set("voucher")} autoComplete="off" maxLength={40} /></>
           )}
+          {visibleQuestions.map((q) => (
+            <fieldset key={q.id} className="pv-q">
+              <legend>{q.label}</legend>
+              {q.options.map((o, i) => (
+                <label key={o.value} className="pv-opt">
+                  <input type="radio" name={`q_${q.id}`} value={o.value} checked={answers[q.id] === o.value}
+                    onChange={() => setAnswers((a) => ({ ...a, [q.id]: o.value }))} required={q.required && i === 0} /> <span>{o.label}</span>
+                </label>
+              ))}
+            </fieldset>
+          ))}
           <label className="pv-check"><input type="checkbox" name="accept_terms" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} required /> <span>{t.accept} ({t.version} {termsVersion})</span></label>
           <label className="pv-check"><input type="checkbox" name="accept_marketing" checked={acceptMarketing} onChange={(e) => setAcceptMarketing(e.target.checked)} /> <span>{t.marketing}</span></label>
           <details>
