@@ -3,13 +3,13 @@
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase";
-import { ASSET_BUCKET, requireAdminTenant } from "@/lib/portal";
+import { ASSET_BUCKET, requireAdminTenant, tenantCatalog } from "@/lib/portal";
 import { requireModule } from "@/lib/tenant-modules";
 import { IMAGE_MIME, MAX_IMAGE_BYTES, sniffImage } from "@/lib/portal-settings";
 import { STATUSES, panamaLocalToIso, parsePromotion } from "@/lib/promotions";
 import { syncPromotionHosts } from "@/lib/promotions-db";
 import { moduleEnabled } from "@/lib/tenant-modules";
-import { isQuestionId } from "@/lib/guest-questions";
+import { parseAudience } from "@/lib/guest-questions";
 
 export type PromoState = { error?: string; ok?: string; id?: string } | null;
 
@@ -54,12 +54,14 @@ export async function savePromotion(_: PromoState, fd: FormData): Promise<PromoS
   const parsed = parsePromotion({
     name: str(fd, "name"), segment: str(fd, "segment"), inactive_days: Number(str(fd, "inactive_days") || 30),
     content: { title: str(fd, "title"), body: str(fd, "body"), cta_label: str(fd, "cta_label"), cta_url: str(fd, "cta_url"), image },
-    audience: audienceQ && isQuestionId(audienceQ) ? { q: audienceQ, in: fd.getAll("aud_in").map(String) } : null,
+    audience: audienceQ ? { q: audienceQ, in: fd.getAll("aud_in").map(String) } : null,
     starts_at: starts, ends_at: ends,
   });
   if (!parsed.ok) return { error: parsed.error };
   // El público por respuestas solo se toca si el módulo «Preguntas al visitante» está activo (si no, el formulario ni lo muestra)
   const { audience, ...rest } = parsed.data;
+  // El público debe ser una pregunta del local (fija o propia) con opciones que existan
+  if (audience && !parseAudience(audience, await tenantCatalog(ctx.tenantId, ctx.tenantName))) return { error: "El público elegido no es válido: revisa la pregunta y las respuestas" };
   const row = { ...rest, ...(audienceTouched ? { audience } : {}), updated_at: new Date().toISOString() };
 
   const db = createAdminClient();

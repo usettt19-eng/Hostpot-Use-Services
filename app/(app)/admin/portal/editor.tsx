@@ -6,7 +6,7 @@ import {
   type PortalState,
 } from "@/app/portal-actions";
 import type { PortalSettings } from "@/lib/portal-settings";
-import { MAX_QUESTIONS, QUESTIONS, QUESTION_IDS } from "@/lib/guest-questions";
+import { CUSTOM_IDS, CUSTOM_LIMITS, MAX_QUESTIONS, QUESTIONS, QUESTION_IDS } from "@/lib/guest-questions";
 import {
   TEMPLATES, TEMPLATE_LABEL, RADII, RADIUS_LABEL, FONTS, FONT_LABEL, LOCALES, METHODS, METHOD_LABEL,
   FIELD_MODES, FIELD_MODE_LABEL, contrastRatio, MIN_CONTRAST,
@@ -124,8 +124,9 @@ export function EditorForm({ s, profileModule = false }: { s: PortalSettings; pr
           <h2 style={{ marginTop: 16 }}>Preguntas al visitante</h2>
           <input type="hidden" name="questions_form" value="1" />
           <p className="muted">
-            Hasta {MAX_QUESTIONS} preguntas de respuesta cerrada que se hacen al conectarse. Sirven para segmentar promociones y ver quién visita el local
-            (por ejemplo, residentes o turistas). Cada dato debe tener una finalidad y conviene mencionarlo en los términos. No se preguntan datos de menores.
+            Hasta {MAX_QUESTIONS} preguntas activas de respuesta cerrada (el visitante elige una opción) que se hacen al conectarse, entre las fijas y las tuyas. Sirven
+            para segmentar promociones y ver quién visita el local (por ejemplo, residentes o turistas). Cada dato debe tener una finalidad y conviene mencionarlo en los
+            términos. No se preguntan datos de menores ni datos delicados (salud, religión, política, orientación sexual, origen étnico, ingresos).
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12 }}>
             {QUESTION_IDS.map((id) => (
@@ -140,6 +141,36 @@ export function EditorForm({ s, profileModule = false }: { s: PortalSettings; pr
             ))}
           </div>
           <p className="muted">«¿Cuánto tiempo estarás?» solo se le hace a quien dice que no vive en la ciudad (si también preguntas la residencia).</p>
+
+          <h3 style={{ marginTop: 16 }}>Preguntas propias (hasta {CUSTOM_IDS.length})</h3>
+          <p className="muted">
+            Escribe tu pregunta y sus opciones, una por línea (de {CUSTOM_LIMITS.minOptions} a {CUSTOM_LIMITS.maxOptions}). El inglés es opcional: si lo dejas vacío, se usa el español.
+            Si cambias el sentido de una opción cuando ya hay respuestas, las anteriores quedan con otro significado: es mejor crear una pregunta nueva.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 }}>
+            {CUSTOM_IDS.map((id, n) => {
+              const c = s.custom_questions.find((x) => x.id === id);
+              return (
+                <div key={id} className="card" style={{ margin: 0 }}>
+                  <strong>Pregunta propia {n + 1}</strong>
+                  <label>Estado</label>
+                  <select name={`question_${id}`} defaultValue={s.questions.find((q) => q.id === id)?.mode ?? "off"}>
+                    <option value="off">No preguntar</option>
+                    <option value="optional">Opcional</option>
+                    <option value="required">Obligatoria</option>
+                  </select>
+                  <label>Pregunta (español)</label>
+                  <input name={`custom_${id}_label_es`} maxLength={CUSTOM_LIMITS.label} defaultValue={c?.label.es ?? ""} placeholder="Ej. ¿Qué te gusta más?" autoComplete="off" />
+                  <label>Opciones en español (una por línea)</label>
+                  <textarea name={`custom_${id}_options_es`} rows={5} defaultValue={c?.options.map((o) => o.es).join("\n") ?? ""} placeholder={"Carne\nPescado\nVegetariano"} />
+                  <label>Pregunta (inglés, opcional)</label>
+                  <input name={`custom_${id}_label_en`} maxLength={CUSTOM_LIMITS.label} defaultValue={c && c.label.en !== c.label.es ? c.label.en : ""} autoComplete="off" />
+                  <label>Opciones en inglés (una por línea, en el mismo orden)</label>
+                  <textarea name={`custom_${id}_options_en`} rows={5} defaultValue={c?.options.some((o) => o.en !== o.es) ? c.options.map((o) => o.en).join("\n") : ""} />
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
       <label>Duración de la sesión del invitado (minutos, 10 a 1440)</label>

@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase";
 import { decryptSecret } from "@/lib/crypto";
-import { requireAdminTenant } from "@/lib/portal";
+import { requireAdminTenant, tenantCatalog } from "@/lib/portal";
 import { syncGuestSessions } from "@/lib/guest-sync";
 import { formatBytes } from "@/lib/mikrotik";
 import { deleteGuest } from "@/app/guest-actions";
 import { moduleEnabled } from "@/lib/tenant-modules";
-import { QUESTIONS, QUESTION_IDS, answerLabel, cleanAnswers, type Answers } from "@/lib/guest-questions";
+import { answerLabel, cleanAnswers, type Answers } from "@/lib/guest-questions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +42,8 @@ export default async function GuestsPage() {
   }
   // Respuestas a las preguntas al visitante (módulo); si la migración 0018 falta, la consulta falla y la columna no sale
   const profileOn = await moduleEnabled(ctx.tenantId, "guest_profile");
+  const catalog = profileOn ? await tenantCatalog(ctx.tenantId, ctx.tenantName) : {};
+  const questionIds = Object.keys(catalog);
   const answers = new Map<string, Answers>();
   if (profileOn && ids.length) {
     const pr = await supabase.from("guests").select("id, profile").in("id", ids);
@@ -82,7 +84,7 @@ export default async function GuestsPage() {
             {(guests ?? []).length === 0 && <tr><td colSpan={9} className="muted">Todavía no hay visitantes.</td></tr>}
             {(guests ?? []).map((g) => (
               <tr key={g.id}>
-                <td>{safeEmail(g.email_enc)}</td><td>{verifiedIds.has(g.id) ? "Sí" : "No"}</td><td>{g.full_name ?? "—"}</td>{profileOn && <td>{QUESTION_IDS.filter((id) => answers.get(g.id)?.[id]).map((id) => `${QUESTIONS[id].short}: ${answerLabel(id, answers.get(g.id)?.[id])}`).join(" · ") || "—"}</td>}<td>{g.visit_count}</td>
+                <td>{safeEmail(g.email_enc)}</td><td>{verifiedIds.has(g.id) ? "Sí" : "No"}</td><td>{g.full_name ?? "—"}</td>{profileOn && <td>{questionIds.filter((id) => answerLabel(id, answers.get(g.id)?.[id], "es", catalog)).map((id) => `${catalog[id].short}: ${answerLabel(id, answers.get(g.id)?.[id], "es", catalog)}`).join(" · ") || "—"}</td>}<td>{g.visit_count}</td>
                 <td>{when(g.first_seen_at)}</td><td>{when(g.last_seen_at)}</td>
                 <td>{marketing.get(g.id) ? "Sí" : "No"}</td>
                 <td><form action={deleteGuest}><input type="hidden" name="id" value={g.id} /><button className="danger">Eliminar</button></form></td>

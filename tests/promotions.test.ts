@@ -5,6 +5,7 @@ import {
   type PromoCandidate,
 } from "../lib/promotions.ts";
 import { isModuleKey, MODULE_KEYS } from "../lib/modules.ts";
+import { parseAudience, buildCatalog } from "../lib/guest-questions.ts";
 
 const content = { title: "2x1 en café", body: "Hoy hasta las 5", cta_label: "Ver menú", cta_url: "https://ejemplo.com/menu", image: null };
 const base = { name: "Café", segment: "all", inactive_days: 30, content, starts_at: null, ends_at: null };
@@ -114,11 +115,22 @@ test("promoción con público por respuestas: solo la ve quien contestó eso, y 
   assert.equal(pickPromotion([locales], { visitCount: 1, lastSeenBefore: null }, now), null, "sin respuestas guardadas");
 });
 
-test("el público de una campaña se valida al guardarla", () => {
+test("el público de una campaña: la forma se valida al guardar y las respuestas contra el catálogo del local", () => {
   assert.ok(parsePromotion({ ...base, audience: { q: "residence", in: ["resident"] } }).ok);
   assert.ok(parsePromotion({ ...base, audience: null }).ok);
   assert.ok(parsePromotion(base).ok, "sin público también vale");
   assert.ok(!parsePromotion({ ...base, audience: { q: "residence", in: [] } }).ok, "al menos una respuesta");
-  assert.ok(!parsePromotion({ ...base, audience: { q: "residence", in: ["marciano"] } }).ok, "respuesta que no existe");
-  assert.ok(!parsePromotion({ ...base, audience: { q: "religion", in: ["x"] } }).ok, "pregunta fuera del catálogo");
+  assert.ok(!parsePromotion({ ...base, audience: { q: "x".repeat(40), in: ["a"] } }).ok);
+  // lo que el catálogo del local no tiene, no es un público válido (lo comprueba el servidor al guardar)
+  assert.equal(parseAudience({ q: "residence", in: ["marciano"] }), null);
+  assert.equal(parseAudience({ q: "religion", in: ["x"] }), null);
+});
+
+test("promoción dirigida a una pregunta propia: solo con el catálogo del local", () => {
+  const cat = buildCatalog([{ id: "custom1", label: { es: "¿Qué prefieres?", en: "x" }, options: [{ value: "o1", es: "Carne", en: "Meat" }, { value: "o2", es: "Pescado", en: "Fish" }] }]);
+  const g = { visitCount: 2, lastSeenBefore: new Date("2026-10-23T00:00:00Z"), answers: { custom1: "o1" } };
+  const carne = cand({ id: "carne", audience: { q: "custom1", in: ["o1"] } });
+  assert.equal(pickPromotion([carne], g, now, cat)?.id, "carne");
+  assert.equal(pickPromotion([carne], { ...g, answers: { custom1: "o2" } }, now, cat), null);
+  assert.equal(pickPromotion([carne], g, now), null, "sin el catálogo del local esa pregunta no existe: no se muestra (nunca se muestra a todos por error)");
 });

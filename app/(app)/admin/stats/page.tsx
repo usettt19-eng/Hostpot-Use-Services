@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase";
-import { requireAdminTenant } from "@/lib/portal";
+import { requireAdminTenant, tenantCatalog } from "@/lib/portal";
 import { RANGES, WEEKDAY_NAMES, buildStats, quick, type Summary } from "@/lib/stats";
 import { Columns, Kpi, nf } from "@/components/stats/charts";
 import { moduleEnabled } from "@/lib/tenant-modules";
-import { QUESTION_IDS, breakdown, cleanAnswers } from "@/lib/guest-questions";
+import { breakdown, cleanAnswers } from "@/lib/guest-questions";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,8 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const profiles = (await moduleEnabled(ctx.tenantId, "guest_profile"))
     ? ((await supabase.from("guests").select("profile").limit(LIMIT)).data ?? []).map((r) => cleanAnswers((r as { profile?: unknown }).profile))
     : null;
-  const breakdowns = profiles ? QUESTION_IDS.map((id) => breakdown(id, profiles)).filter((b) => b.answered > 0) : [];
+  const catalog = profiles ? await tenantCatalog(ctx.tenantId, ctx.tenantName) : {};
+  const breakdowns = profiles ? Object.keys(catalog).map((id) => breakdown(id, profiles, catalog)).filter((b) => b.answered > 0) : [];
   const truncated = sessions.length >= LIMIT || guests.length >= LIMIT;
 
   const st = buildStats(sessions, guests, now, cfg.days, cfg.gran);

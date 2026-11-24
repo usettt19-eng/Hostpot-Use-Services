@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   TEMPLATES, RADII, FONTS, LOCALES, METHODS, FIELD_MODES, contrastRatio, MIN_CONTRAST,
 } from "./portal-theme.ts";
-import { MAX_QUESTIONS, QUESTION_IDS, QUESTION_MODES } from "./guest-questions.ts";
+import { CUSTOM_IDS, CUSTOM_LIMITS, MAX_QUESTIONS, QUESTION_IDS, QUESTION_MODES, checkCustomQuestion } from "./guest-questions.ts";
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color inválido (use #RRGGBB)");
 
@@ -24,6 +24,16 @@ const texts = z.object({
   footer: z.string().trim().max(200),
 });
 
+/** Pregunta propia del local: texto y 2 a 6 opciones cerradas (sin texto libre ni temas delicados; ver checkCustomQuestion). */
+const customQuestionSchema = z.object({
+  id: z.enum(CUSTOM_IDS),
+  label: z.object({ es: z.string().max(CUSTOM_LIMITS.label * 2), en: z.string().max(CUSTOM_LIMITS.label * 2) }),
+  options: z.array(z.object({ value: z.string().regex(/^o[1-6]$/), es: z.string().max(CUSTOM_LIMITS.option * 2), en: z.string().max(CUSTOM_LIMITS.option * 2) })).max(CUSTOM_LIMITS.maxOptions),
+}).superRefine((c, ctx) => {
+  const r = checkCustomQuestion(c);
+  if (!r.ok) ctx.addIssue({ code: "custom", message: r.error });
+});
+
 const assetName = z.string().regex(/^[0-9a-f]{16}\.(png|jpg|webp)$/).nullable();
 const fieldMode = z.enum(FIELD_MODES);
 
@@ -42,12 +52,22 @@ export const portalSettingsSchema = z.object({
   /** Pide un código enviado al correo antes de conectar (requiere el correo configurado en el servidor). */
   verify_email: z.boolean().default(false),
   /** Preguntas opcionales al visitante (módulo «Preguntas al visitante»; catálogo fijo, máximo 3, sin repetir). */
-  questions: z.array(z.object({ id: z.enum(QUESTION_IDS), mode: z.enum(QUESTION_MODES) })).max(MAX_QUESTIONS, `Máximo ${MAX_QUESTIONS} preguntas`)
+  questions: z.array(z.object({ id: z.enum([...QUESTION_IDS, ...CUSTOM_IDS]), mode: z.enum(QUESTION_MODES) })).max(MAX_QUESTIONS, `Máximo ${MAX_QUESTIONS} preguntas activas`)
     .refine((q) => new Set(q.map((x) => x.id)).size === q.length, "Preguntas repetidas").default([]),
+  /** Preguntas propias del local (hasta 3). Una definida pero no activa en `questions` no se muestra. */
+  custom_questions: z.array(customQuestionSchema).max(CUSTOM_IDS.length)
+    .refine((q) => new Set(q.map((x) => x.id)).size === q.length, "Preguntas propias repetidas").default([]),
   redirect_url: httpsUrl,
   privacy_url: httpsUrl,
   terms: z.object({ es: z.string().max(8000), en: z.string().max(8000) }),
   assets: z.object({ logo: assetName, background: assetName }),
+}).superRefine((s, ctx) => {
+  // Una pregunta propia activa debe estar definida
+  for (const q of s.questions) {
+    if ((CUSTOM_IDS as readonly string[]).includes(q.id) && !s.custom_questions.some((c) => c.id === q.id)) {
+      ctx.addIssue({ code: "custom", path: ["questions"], message: `Pregunta propia ${q.id.slice(-1)} activa pero sin definir: escribe el texto y las opciones` });
+    }
+  }
 });
 
 export type PortalSettings = z.infer<typeof portalSettingsSchema>;
@@ -69,6 +89,7 @@ export function defaultSettings(name: string): PortalSettings {
     session_minutes: 120,
     verify_email: false,
     questions: [],
+    custom_questions: [],
     redirect_url: "",
     privacy_url: "",
     terms: { es: "", en: "" },

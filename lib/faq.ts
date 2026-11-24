@@ -205,12 +205,17 @@ export const FAQ: FaqGroup[] = [
         "Es un módulo opcional que activa el administrador de la plataforma, y **no aplica a escuelas** (hay menores de edad). Si no ves la sección **Preguntas al visitante** en **Diseño y horarios**, pídele que lo active.",
       ] },
       { q: "¿Qué preguntas puedo hacer y cómo las activo?", a: [
-        "Hay cinco preguntas prediseñadas: **¿Eres de aquí?** (vivo en la ciudad, vivo en otra ciudad del país, estoy de visita desde otro país), **¿Cuánto tiempo estarás en la ciudad?**, **motivo de la visita**, **cómo nos conoció** y **rango de edad** (desde 18 años). No se pueden escribir preguntas propias: así las respuestas son comparables y no se piden datos delicados.",
-        "En **Diseño y horarios**, sección **Preguntas al visitante**, marca cada una como **Opcional** u **Obligatoria**, o **No preguntar**, y pulsa **Guardar y publicar**. Máximo 3. «¿Cuánto tiempo estarás?» solo se le pregunta a quien dice que no vive en la ciudad.",
+        "Hay cinco preguntas prediseñadas: **¿Eres de aquí?** (vivo en la ciudad, vivo en otra ciudad del país, estoy de visita desde otro país), **¿Cuánto tiempo estarás en la ciudad?**, **motivo de la visita**, **cómo nos conoció** y **rango de edad** (desde 18 años). Esas cinco son fijas, así sus respuestas son comparables entre locales; además puedes escribir las tuyas (ver la pregunta siguiente).",
+        "En **Diseño y horarios**, sección **Preguntas al visitante**, marca cada una como **Opcional** u **Obligatoria**, o **No preguntar**, y pulsa **Guardar y publicar**. Máximo 4 preguntas activas entre fijas y propias. «¿Cuánto tiempo estarás?» solo se le pregunta a quien dice que no vive en la ciudad.",
         "Pregunta solo lo que de verdad usarás y menciónalo en tus términos: cada dato personal necesita una finalidad. Marcar una pregunta como obligatoria hace más lenta la conexión; lo normal es dejarlas opcionales.",
       ] },
+      { q: "¿Puedo escribir mis propias preguntas y respuestas?", a: [
+        "Sí. En **Diseño y horarios**, sección **Preguntas al visitante**, hay hasta **3 preguntas propias**. Para cada una escribes el texto de la pregunta y sus opciones (de 2 a 6, una por línea) y la marcas como **Opcional** u **Obligatoria**. El inglés es opcional: si lo dejas vacío, se usa el español. Ejemplo: «¿Qué prefieres?» con las opciones Carne, Pescado y Vegetariano.",
+        "Siempre son de **respuesta cerrada**: el visitante elige una opción, no escribe. Las preguntas sobre datos delicados (salud, religión, política, orientación sexual, origen étnico, ingresos) no se aceptan, y el sistema te avisa al guardar. Tú sigues siendo responsable de que cada pregunta tenga una finalidad y conste en tus términos.",
+        "Tus preguntas se usan igual que las fijas: como público de una promoción, en la columna **Respuestas** de **Visitantes** y en el CSV, y en **Estadísticas**. Cuidado: si cambias el sentido de una opción cuando ya hay respuestas, las anteriores quedarán con otro significado. Si quieres preguntar algo distinto, crea una pregunta nueva en otra ranura.",
+      ] },
       { q: "¿Cómo envío una promoción solo a residentes o solo a turistas?", a: [
-        "En **Promociones**, al crear o editar la campaña, usa **Solo para quienes respondieron…**: elige la pregunta (por ejemplo «¿Eres de aquí?») y marca las respuestas que quieres alcanzar. Quien no contestó esa pregunta **no** ve esa campaña, y si hay otra campaña general activa, verá esa.",
+        "En **Promociones**, al crear o editar la campaña, usa **Solo para quienes respondieron…**: elige la pregunta (por ejemplo «¿Eres de aquí?», o una tuya) y marca las respuestas que quieres alcanzar. Quien no contestó esa pregunta **no** ve esa campaña, y si hay otra campaña general activa, verá esa.",
         "Una campaña con público por respuestas se muestra antes que una general. Las respuestas se guardan por visitante, así que un visitante que ya contestó no vuelve a ver las campañas de otro público.",
       ] },
       { q: "¿Dónde veo las respuestas?", a: [

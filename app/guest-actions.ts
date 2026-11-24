@@ -20,7 +20,7 @@ import { pickPromotion, promoPageUrl, type PromoCandidate } from "@/lib/promotio
 import { siteOrigin } from "@/lib/site-url";
 import { sealPromoTicket } from "@/lib/promo-token";
 import { mailConfigured, sendMail } from "@/lib/mail";
-import { QUESTION_IDS, cleanAnswers, type Answers } from "@/lib/guest-questions";
+import { CUSTOM_IDS, QUESTION_IDS, buildCatalog, cleanAnswers, type Answers } from "@/lib/guest-questions";
 import { OTP_TTL_MS, canSend, checkCode, generateCode, otpEmail, type OtpRecord } from "@/lib/otp";
 
 export type GuestState = { error?: string; redirect?: string; simulated?: boolean; needCode?: string } | null;
@@ -213,7 +213,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
         const base = "id, status, segment, inactive_days, starts_at, ends_at, created_at, content";
         let { data, error } = await pick(`${base}, audience`);
         if (error) ({ data } = await pick(base));
-        const picked = pickPromotion((data ?? []) as unknown as PromoCandidate[], guest, new Date());
+        const picked = pickPromotion((data ?? []) as unknown as PromoCandidate[], guest, new Date(), buildCatalog(settings.custom_questions));
         if (!picked) return null;
         const token = sealPromoTicket({ tenantId, promoId: picked.id, ...ticket }, { encrypt: encryptSecret, decrypt: decryptSecret }, Date.now());
         return promoPageUrl(siteOrigin(h), tenant.slug, picked.id, token);
@@ -222,6 +222,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
     {
       schedule,
       questions,
+      catalog: buildCatalog(settings.custom_questions),
       tenantId: tenant.id, settings, termsVersion, locale,
       termsText: settings.terms[locale].trim() || settings.terms[settings.default_locale].trim(),
       plan: { name: plan.name, downloadKbps: plan.download_kbps, uploadKbps: plan.upload_kbps },
@@ -229,7 +230,7 @@ export async function guestConnect(_: GuestState, fd: FormData): Promise<GuestSt
         email: s(fd, "email", 300), name: s(fd, "name", 200), phone: s(fd, "phone", 50),
         acceptTerms: fd.get("accept_terms") === "on", acceptMarketing: fd.get("accept_marketing") === "on",
         code: s(fd, "code", 20), resend: fd.get("resend") === "1",
-        answers: Object.fromEntries(QUESTION_IDS.map((id) => [id, s(fd, `q_${id}`, 20)])),
+        answers: Object.fromEntries([...QUESTION_IDS, ...CUSTOM_IDS].map((id) => [id, s(fd, `q_${id}`, 20)])),
       },
       hs: { mac: s(fd, "hs_mac", 40), ip: s(fd, "hs_ip", 40), login: s(fd, "hs_login", 300), orig: s(fd, "hs_orig", 600) },
       userAgent: h.get("user-agent") ?? "",

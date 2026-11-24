@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase";
-import { requireAdminTenant } from "@/lib/portal";
+import { requireAdminTenant, tenantCatalog } from "@/lib/portal";
 import { moduleEnabled, requireModule } from "@/lib/tenant-modules";
-import { QUESTIONS, answerLabel, parseAudience } from "@/lib/guest-questions";
+import { answerLabel, parseAudience } from "@/lib/guest-questions";
 import { SEGMENT_LABEL, STATUS_LABEL, ctrText, isoToPanamaLocal, parseContent, type Segment } from "@/lib/promotions";
 import { deletePromotion, setPromotionStatus } from "@/app/promotions-actions";
 import PromoCard from "@/components/portal/PromoCard";
@@ -24,6 +24,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
   const { edit } = await searchParams;
   const db = createAdminClient();
   const profileModule = await moduleEnabled(ctx.tenantId, "guest_profile");
+  const catalog = await tenantCatalog(ctx.tenantId, ctx.tenantName);
   // `audience` existe desde la migración 0018: si falta, se lee sin ella
   const readList = async () => {
     const q = (cols: string) => db.from("promotions").select(cols).eq("tenant_id", ctx.tenantId).order("created_at", { ascending: false });
@@ -49,7 +50,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
   const values: PromoFormValues = editing && ec
     ? { id: editing.id, name: editing.name, segment: editing.segment, inactive_days: editing.inactive_days,
         title: ec.title, body: ec.body, cta_label: ec.cta_label, cta_url: ec.cta_url, image: ec.image,
-        starts_at: isoToPanamaLocal(editing.starts_at), ends_at: isoToPanamaLocal(editing.ends_at), audience: parseAudience(editing.audience) }
+        starts_at: isoToPanamaLocal(editing.starts_at), ends_at: isoToPanamaLocal(editing.ends_at), audience: parseAudience(editing.audience, catalog) }
     : EMPTY;
   const base = editing ? `/w/${ctx.slug}/promo/${editing.id}` : "";
 
@@ -64,7 +65,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
         {truncated && <p className="err">Hay muchos eventos: las cifras pueden estar incompletas.</p>}
       </div>
 
-      <PromotionForm key={editing?.id ?? "nueva"} v={values} profileModule={profileModule} />
+      <PromotionForm key={editing?.id ?? "nueva"} v={values} profileModule={profileModule} catalog={catalog} />
       {editing && ec && (
         <div className="card">
           <h2>Vista previa</h2>
@@ -88,8 +89,8 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
                   <td>
                     {SEGMENT_LABEL[r.segment]}{r.segment === "inactive" ? ` (${r.inactive_days} días)` : ""}
                     {(() => {
-                      const a = parseAudience(r.audience);
-                      return a ? <><br /><span className="muted">{QUESTIONS[a.q].short}: {a.in.map((v) => answerLabel(a.q, v)).join(", ")}</span></> : null;
+                      const a = parseAudience(r.audience, catalog);
+                      return a ? <><br /><span className="muted">{catalog[a.q].short}: {a.in.map((v) => answerLabel(a.q, v, "es", catalog)).join(", ")}</span></> : null;
                     })()}
                   </td>
                   <td>{fmt(r.starts_at)} → {fmt(r.ends_at)}</td>

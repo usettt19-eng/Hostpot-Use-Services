@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { PortalSettings } from "@/lib/portal-settings";
 import { FONT_STACK, RADIUS_PX, readableOn } from "@/lib/portal-theme";
 import GuestForm from "./GuestForm";
-import { questionUi, type QuestionConfig } from "@/lib/guest-questions";
+import { buildCatalog, questionUi, type QuestionConfig } from "@/lib/guest-questions";
 import StaffLogin from "./StaffLogin";
 
 type Hs = { mac: string; ip: string; login: string; orig: string; err?: string };
@@ -119,7 +119,7 @@ export default function PortalView({ slug, staffLoginUrl, staffDst = "", hs = { 
       {hs.err && <p className="pv-err" role="alert">{hs.err.slice(0, 200)}</p>}
       <GuestForm
         slug={slug} locale={locale} fields={s.fields} methods={s.methods} button={tx.button}
-        termsVersion={termsVersion} terms={terms} questions={questionUi(questions, locale)} hs={{ mac: hs.mac, ip: hs.ip, login: hs.login, orig: hs.orig }}
+        termsVersion={termsVersion} terms={terms} questions={questionUi(questions, locale, buildCatalog(s.custom_questions))} hs={{ mac: hs.mac, ip: hs.ip, login: hs.login, orig: hs.orig }}
         t={{ name: t.name, email: t.email, phone: t.phone, voucher: t.voucher, accept: t.accept, terms: t.terms,
              marketing: t.marketing, version: t.version, noTerms: t.noTerms, connecting: t.connecting, previewDone: t.previewDone,
              code: t.code, codeSent: t.codeSent, resend: t.resend, changeEmail: t.changeEmail, verify: t.verify }}

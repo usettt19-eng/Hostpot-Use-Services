@@ -5,6 +5,7 @@ import { isTenantSuspended } from "@/lib/tenant-status";
 import {
   ASSET_NAME_RE, IMAGE_MIME, defaultSettings, parseSettings, type PortalSettings,
 } from "@/lib/portal-settings";
+import { buildCatalog, type Catalog } from "@/lib/guest-questions";
 
 export const ASSET_BUCKET = "portal-assets";
 
@@ -103,4 +104,13 @@ export function assetResponse(a: { bytes: ArrayBuffer; type: string } | null) {
       "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });
+}
+
+/**
+ * Catálogo de preguntas al visitante de un local (las fijas más las propias definidas en su portal publicado; si aún no hay versión
+ * publicada, las del borrador). Sirve para interpretar las respuestas guardadas en el panel, el CSV y las promociones.
+ */
+export async function tenantCatalog(tenantId: string, tenantName: string): Promise<Catalog> {
+  const { draft, published } = await getPortalState(tenantId, tenantName);
+  return buildCatalog((published ?? draft)?.settings.custom_questions ?? []);
 }

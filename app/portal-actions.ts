@@ -9,7 +9,7 @@ import {
 } from "@/lib/portal-settings";
 import { FIELD_MODES, METHODS, type LOCALES } from "@/lib/portal-theme";
 import { parseHHMM, validateWindows } from "@/lib/schedule";
-import { QUESTION_IDS } from "@/lib/guest-questions";
+import { CUSTOM_IDS, QUESTION_IDS } from "@/lib/guest-questions";
 import { moduleEnabled } from "@/lib/tenant-modules";
 
 export type PortalState = { error?: string; ok?: string; warnings?: string[] } | null;
@@ -40,11 +40,23 @@ function settingsFromForm(fd: FormData, base: PortalSettings, questionsAllowed: 
     verify_email: fd.get("verify_email") === "on",
     // Sin el bloque de preguntas en el formulario (módulo apagado), se conserva lo que ya había
     questions: questionsAllowed && fd.get("questions_form") === "1"
-      ? QUESTION_IDS.flatMap((id) => {
+      ? [...QUESTION_IDS, ...CUSTOM_IDS].flatMap((id) => {
           const m = str(fd, `question_${id}`);
           return m === "optional" || m === "required" ? [{ id, mode: m }] : [];
         })
       : base.questions,
+    // Preguntas propias: una por ranura, con una opción por línea (valores o1, o2… por posición); se guardan aunque estén apagadas
+    custom_questions: questionsAllowed && fd.get("questions_form") === "1"
+      ? CUSTOM_IDS.flatMap((id) => {
+          const es = str(fd, `custom_${id}_label_es`).trim(), en = str(fd, `custom_${id}_label_en`).trim();
+          const linesEs = str(fd, `custom_${id}_options_es`).split(/\r?\n/).map((x) => x.trim());
+          const linesEn = str(fd, `custom_${id}_options_en`).split(/\r?\n/).map((x) => x.trim());
+          const options = linesEs.flatMap((o, i) => (o ? [{ es: o, en: linesEn[i] || o }] : []))
+            .map((o, i) => ({ value: `o${i + 1}`, ...o }));
+          if (!es && !en && !options.length) return [];
+          return [{ id, label: { es, en: en || es }, options }];
+        })
+      : base.custom_questions,
     redirect_url: str(fd, "redirect_url").trim(),
     privacy_url: str(fd, "privacy_url").trim(),
     terms: { es: str(fd, "terms_es"), en: str(fd, "terms_en") },

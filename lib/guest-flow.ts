@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { PortalSettings } from "./portal-settings.ts";
 import type { GuestHistory } from "./promotions.ts";
 import { maskEmail } from "./otp.ts";
-import { cleanAnswers, validateAnswers, type Answers, type QuestionConfig } from "./guest-questions.ts";
+import { cleanAnswers, validateAnswers, type Answers, type Catalog, type QuestionConfig } from "./guest-questions.ts";
 import {
   buildLoginRedirect, isIPv4, isMac, isValidEmail, normalizeEmail, normalizeMac, normalizePhone, parseLoginUrl, routerDuration, sanitizeOrig,
 } from "./guest-utils.ts";
@@ -68,6 +68,8 @@ export type FlowInput = {
   locale?: "es" | "en";
   /** Preguntas al visitante que hace este local (solo con el módulo activo y nunca en escuelas); vacío = ninguna. */
   questions?: QuestionConfig[];
+  /** Catálogo del local (fijas + propias) para validar las respuestas. */
+  catalog?: Catalog;
   hs: { mac: string; ip: string; login: string; orig: string };
   userAgent: string;
 };
@@ -109,7 +111,7 @@ export async function connectGuest(deps: FlowDeps, input: FlowInput): Promise<Fl
   // Preguntas al visitante (módulo): las obligatorias deben venir contestadas y solo se aceptan opciones del catálogo
   let answers: Answers = {};
   if (input.questions?.length) {
-    const v = validateAnswers(input.questions, form.answers ?? {}, input.locale ?? st.default_locale);
+    const v = validateAnswers(input.questions, form.answers ?? {}, input.locale ?? st.default_locale, input.catalog);
     if (!v.ok) return fail(v.error);
     answers = v.answers;
   }

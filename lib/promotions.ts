@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { QUESTIONS, QUESTION_IDS, audienceMatches, parseAudience, type Answers } from "./guest-questions.ts";
+import { QUESTIONS, audienceMatches, parseAudience, type Answers, type Catalog } from "./guest-questions.ts";
 
 // Módulo «Promociones». Función pura: validación, segmentos y elección de la campaña que ve cada visitante.
 // El contenido nunca lleva HTML, CSS ni JS libres: solo texto, una imagen verificada y un enlace https://.
@@ -45,8 +45,7 @@ export const promotionSchema = z.object({
   inactive_days: z.number().int().min(7, "Mínimo 7 días").max(365, "Máximo 365 días"),
   content: contentSchema,
   /** Público según las respuestas del visitante (módulo «Preguntas al visitante»); null = para todos. */
-  audience: z.object({ q: z.enum(QUESTION_IDS), in: z.array(z.string()).min(1, "Elige al menos una respuesta para el público") }).nullable()
-    .refine((a) => !a || a.in.every((v) => QUESTIONS[a.q].options.some((o) => o.value === v)), "Respuesta no válida para ese público").default(null),
+  audience: z.object({ q: z.string().min(1).max(20), in: z.array(z.string().max(20)).min(1, "Elige al menos una respuesta para el público") }).nullable().default(null),
   starts_at: z.string().datetime().nullable(),
   ends_at: z.string().datetime().nullable(),
 }).refine((p) => !p.starts_at || !p.ends_at || Date.parse(p.ends_at) > Date.parse(p.starts_at), {
@@ -117,16 +116,22 @@ export type PromoCandidate = {
 const PRIORITY: Record<Segment, number> = { inactive: 3, returning: 2, new: 2, all: 1 };
 
 /** Elige la campaña activa y vigente que corresponde al visitante (la más específica; a igualdad, la más reciente). */
-export function pickPromotion<T extends PromoCandidate>(list: T[], g: GuestHistory, now: Date): T | null {
+export function pickPromotion<T extends PromoCandidate>(list: T[], g: GuestHistory, now: Date, catalog: Catalog = QUESTIONS): T | null {
   const t = now.getTime();
+  // Una campaña con público que ya no se puede interpretar (p. ej. se borró la pregunta propia) NO se muestra a todos: se omite
+  const audienceOk = (p: PromoCandidate) => {
+    if (p.audience == null) return true;
+    const a = parseAudience(p.audience, catalog);
+    return !!a && audienceMatches(a, g.answers);
+  };
   const ok = list.filter((p) =>
     p.status === "active" &&
     (!p.starts_at || Date.parse(p.starts_at) <= t) && (!p.ends_at || Date.parse(p.ends_at) > t) &&
     parseContent(p.content) !== null &&
     inSegment(p.segment, g, p.inactive_days, now) &&
-    audienceMatches(parseAudience(p.audience), g.answers));
+    audienceOk(p));
   // Una campaña con público por respuestas es más específica que una general
-  const rank = (p: PromoCandidate) => PRIORITY[p.segment] * 2 + (parseAudience(p.audience) ? 1 : 0);
+  const rank = (p: PromoCandidate) => PRIORITY[p.segment] * 2 + (p.audience != null ? 1 : 0);
   ok.sort((a, b) => rank(b) - rank(a) || Date.parse(b.created_at) - Date.parse(a.created_at));
   return ok[0] ?? null;
 }

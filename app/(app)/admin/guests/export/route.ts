@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase";
 import { decryptSecret } from "@/lib/crypto";
-import { requireAdminTenant } from "@/lib/portal";
+import { requireAdminTenant, tenantCatalog } from "@/lib/portal";
 import { csvCell } from "@/lib/guest-utils";
 import { moduleEnabled } from "@/lib/tenant-modules";
-import { QUESTIONS, QUESTION_IDS, answerLabel, cleanAnswers, type Answers } from "@/lib/guest-questions";
+import { answerLabel, cleanAnswers, type Answers } from "@/lib/guest-questions";
 
 export async function GET() {
   const ctx = await requireAdminTenant();
@@ -14,6 +14,8 @@ export async function GET() {
   const ids = (guests ?? []).map((g) => g.id);
   // Respuestas a las preguntas al visitante (solo con el módulo activo); si la migración 0018 falta, no salen
   const profileOn = await moduleEnabled(ctx.tenantId, "guest_profile");
+  const catalog = profileOn ? await tenantCatalog(ctx.tenantId, ctx.tenantName) : {};
+  const questionIds = Object.keys(catalog);
   const answers = new Map<string, Answers>();
   if (profileOn) {
     for (let i = 0; i < ids.length; i += 200) {
@@ -28,11 +30,11 @@ export async function GET() {
     for (const c of data ?? []) if (!marketing.has(c.guest_id)) marketing.set(c.guest_id, c.granted);
   }
   const safe = (enc: string) => { try { return decryptSecret(enc); } catch { return ""; } };
-  const answerCols = profileOn ? QUESTION_IDS.map((id) => QUESTIONS[id].short.toLowerCase().replace(/ /g, "_")) : [];
+  const answerCols = questionIds.map((id) => catalog[id].short.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/g, "_"));
   const lines = [["correo", "nombre", "visitas", "primera_visita", "ultima_visita", "acepta_promociones", ...answerCols].map(csvCell).join(",")];
   for (const g of guests ?? []) {
     lines.push([safe(g.email_enc), g.full_name, g.visit_count, g.first_seen_at, g.last_seen_at, marketing.get(g.id) ? "si" : "no",
-      ...(profileOn ? QUESTION_IDS.map((id) => answerLabel(id, answers.get(g.id)?.[id])) : [])].map(csvCell).join(","));
+      ...questionIds.map((id) => answerLabel(id, answers.get(g.id)?.[id], "es", catalog))].map(csvCell).join(","));
   }
   return new Response("﻿" + lines.join("\r\n") + "\r\n", {
     headers: {

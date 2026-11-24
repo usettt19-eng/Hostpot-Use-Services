@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { connectGuest, type FlowDeps, type FlowInput, type RouterApi } from "../lib/guest-flow.ts";
 import { defaultSettings } from "../lib/portal-settings.ts";
+import { buildCatalog } from "../lib/guest-questions.ts";
 
 const MAC = "AA:BB:CC:DD:EE:FF";
 
@@ -328,4 +329,24 @@ test("Preguntas: con la verificación del correo, las respuestas no se guardan h
   const r = await connectGuest(s.deps, { ...s.input, questions: [{ id: "residence", mode: "optional" }], form: { ...s.input.form, answers: { residence: "resident" } } });
   assert.ok(r.ok && "needCode" in r);
   assert.ok(!s.calls.includes("upsertGuest"));
+});
+
+test("Preguntas propias: se validan contra el catálogo del local y se guardan con su ranura", async () => {
+  const catalog = buildCatalog([{ id: "custom1", label: { es: "¿Qué prefieres?", en: "What do you prefer?" }, options: [{ value: "o1", es: "Carne", en: "Meat" }, { value: "o2", es: "Pescado", en: "Fish" }] }]);
+  const questions = [{ id: "custom1" as const, mode: "required" as const }];
+  const missing = setup();
+  const r1 = await connectGuest(missing.deps, { ...missing.input, catalog, questions, locale: "es" });
+  assert.ok(!r1.ok && /¿Qué prefieres\?/.test(r1.error));
+  assert.ok(!missing.calls.includes("upsertGuest"));
+
+  const wrong = setup();
+  assert.ok(!(await connectGuest(wrong.deps, { ...wrong.input, catalog, questions, form: { ...wrong.input.form, answers: { custom1: "o7" } } })).ok, "una opción que no existe");
+
+  const good = setup();
+  let saved: any;
+  const orig = good.deps.db.upsertGuest;
+  good.deps.db.upsertGuest = async (t, g) => { saved = g.profile; return orig(t, g); };
+  const r2 = await connectGuest(good.deps, { ...good.input, catalog, questions, form: { ...good.input.form, answers: { custom1: "o2", residence: "foreign" } } });
+  assert.ok(r2.ok && "redirect" in r2);
+  assert.deepEqual(saved, { custom1: "o2" }, "solo las preguntas activas del local");
 });

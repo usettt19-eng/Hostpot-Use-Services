@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { savePromotion, type PromoState } from "@/app/promotions-actions";
 import { SEGMENTS, SEGMENT_LABEL, type Segment } from "@/lib/promotions";
-import { QUESTIONS, QUESTION_IDS, isQuestionId, type Audience } from "@/lib/guest-questions";
+import type { Audience, Catalog } from "@/lib/guest-questions";
 import { useState } from "react";
 
 export type PromoFormValues = {
@@ -17,7 +17,7 @@ export const EMPTY: PromoFormValues = {
   name: "", segment: "all", inactive_days: 30, title: "", body: "", cta_label: "", cta_url: "", image: null, starts_at: "", ends_at: "", audience: null,
 };
 
-export function PromotionForm({ v, profileModule = false }: { v: PromoFormValues; profileModule?: boolean }) {
+export function PromotionForm({ v, profileModule = false, catalog = {} }: { v: PromoFormValues; profileModule?: boolean; catalog?: Catalog }) {
   const [state, action, pending] = useActionState<PromoState, FormData>(savePromotion, null);
   const [audQ, setAudQ] = useState<string>(v.audience?.q ?? "");
   return (
@@ -41,11 +41,11 @@ export function PromotionForm({ v, profileModule = false }: { v: PromoFormValues
           <label>Solo para quienes respondieron… (opcional)</label>
           <select name="aud_q" value={audQ} onChange={(e) => setAudQ(e.target.value)}>
             <option value="">Sin filtro por respuestas</option>
-            {QUESTION_IDS.map((id) => <option key={id} value={id}>{QUESTIONS[id].short}: {QUESTIONS[id].label.es}</option>)}
+            {Object.keys(catalog).map((id) => <option key={id} value={id}>{catalog[id].short}: {catalog[id].label.es}</option>)}
           </select>
-          {isQuestionId(audQ) && (
+          {catalog[audQ] && (
             <div className="row" style={{ marginTop: 6 }}>
-              {QUESTIONS[audQ].options.map((o) => (
+              {catalog[audQ].options.map((o) => (
                 <label key={`${audQ}-${o.value}`} className="inline" style={{ margin: 0 }}>
                   <input type="checkbox" name="aud_in" value={o.value} style={{ width: "auto" }}
                     defaultChecked={v.audience?.q === audQ && v.audience.in.includes(o.value)} /> {o.es}
